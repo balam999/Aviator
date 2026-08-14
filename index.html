@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Aviator Native Premium App</title>
+  
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+  <style>
+    :root {
+      --bg-main: #060103;
+      --card-bg: #110206;
+      --accent-red: #e6002e;
+      --bright-red: #ff1a47;
+      --gold-yellow: #ffb703;
+      --text-sub: #a0a0a0;
+    }
+
+    html, body {
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+      overflow-x: hidden;
+      background-color: var(--bg-main);
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0; padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    #toastContainer { position: fixed; top: 12px; right: 12px; z-index: 99999; display: flex; flex-direction: column; gap: 8px; }
+    .toast-msg { background: var(--card-bg); border: 1px solid var(--accent-red); color: #fff; padding: 12px 18px; border-radius: 10px; font-size: 13px; font-weight: 800; box-shadow: 0 4px 20px rgba(230, 0, 46, 0.5); max-width: 320px; word-wrap: break-word; }
+    .toast-msg img { width: 100%; border-radius: 6px; margin-top: 8px; display: block; max-height: 150px; object-fit: cover; }
+
+    /* Notification Permission Bar */
+    #notifPermBar { background: var(--accent-red); color: #fff; padding: 10px; text-align: center; font-size: 13px; font-weight: bold; cursor: pointer; display: none; }
+
+    /* Banned Overlay Screen */
+    #bannedOverlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(10, 0, 3, 0.96); z-index: 999999;
+      display: none; flex-direction: column; justify-content: center; align-items: center;
+      text-align: center; padding: 20px;
+    }
+    .ban-card { background: #1a0208; border: 2px solid var(--accent-red); padding: 25px; border-radius: 16px; box-shadow: 0 0 30px rgba(230,0,46,0.6); }
+    .btn-tg-support { background: #0088cc; color: #fff; border: none; padding: 12px 24px; font-size: 15px; font-weight: 900; border-radius: 8px; cursor: pointer; margin-top: 15px; text-decoration: none; display: inline-block; }
+
+    /* Top Bar Header */
+    .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #0c0104; border-bottom: 1.5px solid #29020a; }
+    .user-info { display: flex; align-items: center; gap: 10px; }
+    .user-avatar { width: 42px; height: 42px; border-radius: 50%; border: 2px solid var(--accent-red); background: var(--accent-red); display: flex; align-items: center; justify-content: center; font-weight: 900; overflow: hidden; box-shadow: 0 0 10px rgba(230, 0, 46, 0.3); }
+    .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .username { font-size: 14px; font-weight: 800; color: #fff; }
+
+    .balance-chip {
+      background: linear-gradient(135deg, #240209, #4a0212);
+      border: 1.5px solid var(--accent-red); padding: 8px 16px; border-radius: 20px;
+      font-size: 15px; font-weight: 900; color: #fff; cursor: pointer; transition: transform 0.15s ease;
+      box-shadow: 0 0 12px rgba(230, 0, 46, 0.2);
+    }
+
+    .main-container { padding: 10px; padding-bottom: 90px; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; animation: fadeIn 0.2s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Canvas Screen */
+    .aviator-screen {
+      position: relative; width: 100%; height: 240px;
+      background: #000; border-radius: 16px; border: 2px solid var(--accent-red); overflow: hidden;
+      display: flex; justify-content: center; align-items: center;
+      will-change: transform;
+    }
+    canvas#flightCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+    .multiplier-text { position: relative; z-index: 5; font-size: 54px; font-weight: 900; color: #fff; text-shadow: 0 0 20px var(--accent-red); }
+
+    .waiting-bar-container { position: absolute; bottom: 20px; left: 5%; width: 90%; height: 7px; background: rgba(255, 255, 255, 0.1); border-radius: 10px; overflow: hidden; display: none; z-index: 6; }
+    .waiting-bar-fill { width: 0%; height: 100%; background: var(--accent-red); transition: width 0.05s linear; }
+    .waiting-status-text { position: absolute; bottom: 33px; font-size: 11px; font-weight: 900; color: #fff; z-index: 6; display: none; letter-spacing: 1px; }
+
+    .live-balance-banner {
+      background: #140207; border: 1px solid var(--accent-red); border-radius: 10px;
+      padding: 10px 15px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center;
+    }
+
+    .bet-panel { background: var(--card-bg); border-radius: 14px; padding: 12px; margin-top: 10px; border: 1px solid #33030f; }
+    .bet-controls { display: flex; gap: 10px; }
+    .inputs-area { flex: 1; }
+    .counter-box { display: flex; align-items: center; background: #000; border-radius: 8px; border: 1px solid #470415; margin-bottom: 6px; }
+    .btn-step { width: 36px; height: 36px; background: none; border: none; color: var(--bright-red); font-size: 20px; font-weight: bold; cursor: pointer; }
+    .bet-input { width: 100%; background: none; border: none; text-align: center; color: #fff; font-weight: 800; font-size: 16px; outline: none; }
+    .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .btn-quick { background: #1a030b; border: 1px solid #3d0515; color: #fff; padding: 6px; font-size: 11px; font-weight: bold; border-radius: 6px; }
+
+    .btn-bet-main { flex: 1.3; background: var(--accent-red); border: none; border-radius: 12px; color: #fff; font-weight: 900; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px 5px; box-shadow: 0 4px 15px rgba(230,0,46,0.3); }
+    .btn-bet-main.cashout { background: linear-gradient(135deg, #ff9900, #cc7a00) !important; border: 2px solid #fff; }
+    .btn-bet-main.placed { background: #33000b; color: var(--text-sub); }
+
+    /* Payment UI */
+    .payment-card-dark { background: var(--card-bg); color: #fff; border-radius: 16px; padding: 20px; border: 2px solid var(--accent-red); }
+    .card-title-red { font-size: 20px; font-weight: 900; color: var(--accent-red); margin-bottom: 5px; text-align: center; }
+    .limit-badge { font-size: 12px; color: var(--gold-yellow); text-align: center; margin-bottom: 15px; font-weight: bold; }
+    .form-label-red { font-size: 13px; color: #ccc; margin-top: 12px; display: block; font-weight: bold; }
+    .form-input-red { width: 100%; padding: 12px; background: #000; border: 1px solid #4a0416; border-radius: 8px; color: #fff; margin-top: 5px; outline: none; font-size: 15px; font-weight: bold; }
+    .number-copy-box-red { display: flex; align-items: center; justify-content: space-between; background: #170208; border: 1px dashed var(--accent-red); padding: 12px; border-radius: 8px; margin-top: 8px; }
+    .btn-copy-red { background: var(--accent-red); color: #fff; border: none; padding: 8px 16px; font-weight: 900; border-radius: 6px; cursor: pointer; }
+    .btn-action-submit-red { width: 100%; padding: 14px; background: var(--accent-red); border: none; border-radius: 8px; color: #fff; font-weight: 900; font-size: 16px; margin-top: 15px; cursor: pointer; }
+
+    /* Transaction History Styles */
+    .history-card { margin-top: 20px; background: #0a0104; border: 1px solid #29020a; border-radius: 12px; padding: 12px; }
+    .history-title { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 10px; border-bottom: 1px solid #29020a; padding-bottom: 6px; }
+    .history-item { display: flex; justify-content: space-between; align-items: center; background: #120207; padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid var(--accent-red); }
+    .history-empty { text-align: center; color: #888; font-size: 12px; padding: 15px 0; }
+    
+    .status-badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+    .status-pending { background: #ff9900; color: #000; }
+    .status-approved { background: #00e676; color: #000; }
+    .status-rejected { background: #ff1a47; color: #fff; }
+
+    .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 70px; background: #080003; border-top: 2px solid #29020a; display: flex; justify-content: space-around; align-items: center; z-index: 100; padding: 0 6px; }
+    .nav-3d-btn { flex: 1; height: 52px; margin: 0 3px; background: #170208; border: 1px solid #3a0414; border-radius: 12px; color: var(--text-sub); display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 11px; font-weight: 800; cursor: pointer; }
+    .nav-3d-btn.active { background: linear-gradient(180deg, #ff0033 0%, #80001a 100%); border-color: #ff4d70; color: #ffffff; box-shadow: 0 0 12px rgba(255,0,51,0.4); }
+  </style>
+</head>
+<body>
+
+  <!-- Push Notification Enable Bar -->
+  <div id="notifPermBar" onclick="requestNotificationPermission()">
+    🔔 পুশ নোটিফিকেশন পেতে এখানে ক্লিক করে এলাও (Allow) করুন
+  </div>
+
+  <!-- Banned Screen Overlay -->
+  <div id="bannedOverlay">
+    <div class="ban-card">
+      <h2 style="color:var(--accent-red); margin:0 0 10px 0;">🚫 একাউন্ট ব্যান করা হয়েছে!</h2>
+      <p style="font-size:14px; color:#ccc;">নিয়ম লঙ্ঘনের কারণে আপনার আইডিটি সাময়িকভাবে ব্যান করা হয়েছে। আনব্যান করতে অ্যাডমিনের সাথে যোগাযোগ করুন।</p>
+      <a href="#" id="tgSupportBtn" target="_blank" class="btn-tg-support">✈️ সাপোর্ট টেলিগ্রামে যান</a>
+    </div>
+  </div>
+
+  <div id="toastContainer"></div>
+
+  <!-- Header -->
+  <div class="top-bar">
+    <div class="user-info">
+      <div class="user-avatar" id="uAvatarBox">U</div>
+      <div class="username" id="uName">Player</div>
+    </div>
+    <div class="balance-chip" id="topUserBalance">0.00 BDT</div>
+  </div>
+
+  <div class="main-container">
+
+    <!-- TAB 1: CASINO HOME -->
+    <div id="tabCasino" class="tab-content active">
+      <div class="aviator-screen">
+        <canvas id="flightCanvas"></canvas>
+        <div id="multiplierText" class="multiplier-text">1.00x</div>
+        <div class="waiting-status-text" id="waitingStatusText">WAITING FOR NEXT ROUND...</div>
+        <div class="waiting-bar-container" id="waitingBarBox">
+          <div class="waiting-bar-fill" id="waitingBarFill"></div>
+        </div>
+      </div>
+
+      <div class="live-balance-banner">
+        <span style="font-size:13px; color:#aaa; font-weight:bold;">বর্তমান একাউন্ট ব্যালেন্স:</span>
+        <span style="font-size:16px; color:#00e676; font-weight:900;" id="homeLiveBalanceShow">0.00 BDT</span>
+      </div>
+
+      <!-- Bet Panel 1 -->
+      <div class="bet-panel">
+        <div class="bet-controls">
+          <div class="inputs-area">
+            <div class="counter-box">
+              <button class="btn-step" onclick="changeBetVal('betAmount1', -10)">-</button>
+              <input type="number" id="betAmount1" class="bet-input" value="10.00">
+              <button class="btn-step" onclick="changeBetVal('betAmount1', 10)">+</button>
+            </div>
+            <div class="preset-grid">
+              <button class="btn-quick" onclick="setBetVal('betAmount1', 100)">100</button>
+              <button class="btn-quick" onclick="setBetVal('betAmount1', 200)">200</button>
+              <button class="btn-quick" onclick="setBetVal('betAmount1', 500)">500</button>
+              <button class="btn-quick" onclick="setBetVal('betAmount1', 1000)">1000</button>
+            </div>
+          </div>
+          <button id="btnBet1" class="btn-bet-main" onclick="handleBet(1)">
+            <span style="font-size:18px;">BET</span>
+            <span style="font-size:14px;" id="btnVal1">10.00 BDT</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Bet Panel 2 -->
+      <div class="bet-panel">
+        <div class="bet-controls">
+          <div class="inputs-area">
+            <div class="counter-box">
+              <button class="btn-step" onclick="changeBetVal('betAmount2', -10)">-</button>
+              <input type="number" id="betAmount2" class="bet-input" value="10.00">
+              <button class="btn-step" onclick="changeBetVal('betAmount2', 10)">+</button>
+            </div>
+            <div class="preset-grid">
+              <button class="btn-quick" onclick="setBetVal('betAmount2', 100)">100</button>
+              <button class="btn-quick" onclick="setBetVal('betAmount2', 200)">200</button>
+              <button class="btn-quick" onclick="setBetVal('betAmount2', 500)">500</button>
+              <button class="btn-quick" onclick="setBetVal('betAmount2', 1000)">1000</button>
+            </div>
+          </div>
+          <button id="btnBet2" class="btn-bet-main" onclick="handleBet(2)">
+            <span style="font-size:18px;">BET</span>
+            <span style="font-size:14px;" id="btnVal2">10.00 BDT</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: DEPOSIT -->
+    <div id="tabDeposit" class="tab-content">
+      <div class="payment-card-dark">
+        <div class="card-title-red">📌 ডিপোজিট করুন</div>
+        <div class="limit-badge" id="depLimitShow">সর্বনিম্ন: 100 BDT — সর্বোচ্চ: 25000 BDT</div>
+
+        <label class="form-label-red">পেমেন্ট মেথড সিলেক্ট করুন:</label>
+        <select id="depMethod" class="form-input-red" onchange="onMethodChange()">
+          <option value="Bkash">Bkash Personal</option>
+          <option value="Nagad">Nagad Personal</option>
+        </select>
+
+        <div style="margin-top:15px; font-size:13px; color:#00e676; font-weight:bold; text-align:center;">
+          ⚠️ নিচের নম্বরে সেন্ড মানি (Send Money) করুন:
+        </div>
+
+        <div class="number-copy-box-red">
+          <span style="font-size:17px; font-weight:900; color:var(--bright-red);" id="activePayNumber">01721972119</span>
+          <button class="btn-copy-red" onclick="copyNumber('activePayNumber')">COPY</button>
+        </div>
+
+        <label class="form-label-red">পরিমাণ (BDT):</label>
+        <input type="number" id="depAmount" class="form-input-red" placeholder="টাকার পরিমাণ">
+        
+        <label class="form-label-red">Transaction ID (TrxID):</label>
+        <input type="text" id="depTrx" class="form-input-red" placeholder="TrxID">
+
+        <button class="btn-action-submit-red" onclick="submitDeposit()">ডিপোজিট সাবমিট করুন</button>
+      </div>
+
+      <!-- DEPOSIT HISTORY -->
+      <div class="history-card">
+        <div class="history-title">📜 ডিপোজিট হিস্ট্রি</div>
+        <div id="depositHistoryBox">
+          <div class="history-empty">কোনো লেনদেনের হিস্ট্রি নেই</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: WITHDRAW -->
+    <div id="tabWithdraw" class="tab-content">
+      <div class="payment-card-dark">
+        <div class="card-title-red">💰 উইথড্র করুন</div>
+        <div class="limit-badge" id="witLimitShow">সর্বনিম্ন: 200 BDT — সর্বোচ্চ: 50000 BDT</div>
+        
+        <div style="background:#000; border:1px solid var(--accent-red); padding:12px; border-radius:10px; text-align:center; margin-bottom:15px;">
+          <div style="font-size:12px; color:#aaa; font-weight:bold;">উইথড্রযোগ্য ব্যালেন্স</div>
+          <div style="font-size:24px; font-weight:900; color:#00e676; margin-top:2px;" id="withdrawPageBalance">0.00 BDT</div>
+        </div>
+
+        <label class="form-label-red">পেমেন্ট মেথড:</label>
+        <select id="witMethod" class="form-input-red">
+          <option value="Bkash">Bkash</option>
+          <option value="Nagad">Nagad</option>
+        </select>
+        <label class="form-label-red">আপনার নম্বর:</label>
+        <input type="text" id="witNumber" class="form-input-red" placeholder="ফোন নম্বর">
+        <label class="form-label-red">পরিমাণ (BDT):</label>
+        <input type="number" id="witAmount" class="form-input-red" placeholder="উইথড্র করার টাকা">
+        <button class="btn-action-submit-red" onclick="submitWithdraw()">উইথড্র সাবমিট করুন</button>
+      </div>
+
+      <!-- WITHDRAW HISTORY -->
+      <div class="history-card">
+        <div class="history-title">📜 উইথড্র হিস্ট্রি</div>
+        <div id="withdrawHistoryBox">
+          <div class="history-empty">কোনো লেনদেনের হিস্ট্রি নেই</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="bottom-nav">
+    <button class="nav-3d-btn active" id="navBtnCasino" onclick="switchNav('tabCasino', this)">🎮 ক্যাসিনো</button>
+    <button class="nav-3d-btn" onclick="switchNav('tabDeposit', this)">📌 ডিপোজিট</button>
+    <button class="nav-3d-btn" id="navBtnWithdraw" onclick="switchNav('tabWithdraw', this)">💰 উইথড্র</button>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCNTtvQJRleVCg1N2sP3vUt-B42-_ktAxg",
+      authDomain: "referral-earning-1a642.firebaseapp.com",
+      databaseURL: "https://referral-earning-1a642-default-rtdb.firebaseio.com",
+      projectId: "referral-earning-1a642",
+      storageBucket: "referral-earning-1a642.firebasestorage.app",
+      messagingSenderId: "732741589568",
+      appId: "1:732741589568:web:8e427defd84b2dabab9da5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Push Notification Permission Check
+    function checkNotificationPermission() {
+      if ("Notification" in window) {
+        if (Notification.permission === "default") {
+          document.getElementById('notifPermBar').style.display = 'block';
+        } else {
+          document.getElementById('notifPermBar').style.display = 'none';
+        }
+      }
+    }
+
+    function requestNotificationPermission() {
+      if ("Notification" in window) {
+        Notification.requestPermission().then(permission => {
+          if (permission === "granted") {
+            showPushNotification("ধন্যবাদ!", "পুশ নোটিফিকেশন চালু করা হয়েছে।");
+          }
+          checkNotificationPermission();
+        });
+      }
+    }
+    checkNotificationPermission();
+
+    let tg = window.Telegram ? window.Telegram.WebApp : null;
+    let userId = "USER_" + Math.floor(10000 + Math.random() * 90000);
+    let displayName = "Player";
+    let photoUrl = "";
+
+    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+      let u = tg.initDataUnsafe.user;
+      userId = "TG_" + u.id;
+      displayName = u.first_name + (u.last_name ? " " + u.last_name : "");
+      if(u.photo_url) photoUrl = u.photo_url;
+    } else {
+      let saved = localStorage.getItem('aviator_user');
+      if(saved) userId = saved; else localStorage.setItem('aviator_user', userId);
+    }
+    
+    document.getElementById('uName').innerText = displayName;
+    if(photoUrl) document.getElementById('uAvatarBox').innerHTML = `<img src="${photoUrl}">`;
+
+    let balance = 0.00;
+    let currentMultiplier = 1.00;
+    let flightTimer = null;
+    let isGameFlying = false;
+    let forceCrashTriggered = false;
+
+    let bkashNumber = "01721972119", nagadNumber = "01327789835";
+    let minDep = 100, maxDep = 25000, minWit = 200, maxWit = 50000;
+    let telegramLink = "https://t.me/your_telegram_username";
+
+    let bet1Queued = false, bet1InGame = false;
+    let bet2Queued = false, bet2InGame = false;
+    let winLossToggle = false;
+
+    // Realtime Sync
+    db.ref('users/' + userId).on('value', snap => {
+      let uData = snap.val() || {};
+      
+      if(uData.isBanned === true) {
+        document.getElementById('bannedOverlay').style.display = 'flex';
+        return;
+      } else {
+        document.getElementById('bannedOverlay').style.display = 'none';
+      }
+
+      balance = parseFloat(uData.balance || 0);
+      let formatted = balance.toFixed(2) + " BDT";
+      document.getElementById('topUserBalance').innerText = formatted;
+      document.getElementById('homeLiveBalanceShow').innerText = formatted;
+      document.getElementById('withdrawPageBalance').innerText = formatted;
+
+      if(uData.pushMsg) {
+        let duration = uData.msgDuration || 5;
+        let img = uData.msgImg || "";
+        
+        showPushNotification("নোটিফিকেশন", uData.pushMsg, duration, img);
+        triggerNativeMobileNotification("নোটিফিকেশন", uData.pushMsg, img);
+        
+        db.ref('users/' + userId + '/pushMsg').remove();
+        db.ref('users/' + userId + '/msgImg').remove();
+      }
+    });
+
+    db.ref('users/' + userId).update({ userName: displayName, photoUrl: photoUrl, lastActive: Date.now() });
+
+    // Dynamic Admin Link & Config Sync
+    db.ref('settings').on('value', snap => {
+      let d = snap.val() || {};
+      if(d.bkash) bkashNumber = d.bkash;
+      if(d.nagad) nagadNumber = d.nagad;
+      if(d.telegram) {
+        telegramLink = d.telegram;
+        document.getElementById('tgSupportBtn').href = telegramLink;
+      }
+      if(d.minDep) minDep = parseFloat(d.minDep);
+      if(d.maxDep) maxDep = parseFloat(d.maxDep);
+      if(d.minWit) minWit = parseFloat(d.minWit);
+      if(d.maxWit) maxWit = parseFloat(d.maxWit);
+
+      document.getElementById('depLimitShow').innerText = `সর্বনিম্ন: ${minDep} BDT — সর্বোচ্চ: ${maxDep} BDT`;
+      document.getElementById('witLimitShow').innerText = `সর্বনিম্ন: ${minWit} BDT — সর্বোচ্চ: ${maxWit} BDT`;
+      onMethodChange();
+    });
+
+    // Realtime Deposit History Sync
+    db.ref('deposits').orderByChild('userId').equalTo(userId).on('value', snap => {
+      let box = document.getElementById('depositHistoryBox');
+      let html = '';
+      let hasData = false;
+
+      snap.forEach(child => {
+        hasData = true;
+        let item = child.val();
+        let stClass = item.status === 'pending' ? 'status-pending' : (item.status === 'approved' ? 'status-approved' : 'status-rejected');
+        let stText = item.status === 'pending' ? 'Pending' : (item.status === 'approved' ? 'Approved' : 'Rejected');
+
+        html = `
+          <div class="history-item">
+            <div>
+              <div style="font-size:13px; font-weight:bold; color:#fff;">${item.method} — ${item.amount} BDT</div>
+              <div style="font-size:11px; color:#aaa; margin-top:2px;">TrxID: ${item.trx}</div>
+            </div>
+            <span class="status-badge ${stClass}">${stText}</span>
+          </div>
+        ` + html;
+      });
+
+      if(hasData) {
+        box.innerHTML = html;
+      } else {
+        box.innerHTML = '<div class="history-empty">কোনো লেনদেনের হিস্ট্রি নেই</div>';
+      }
+    });
+
+    // Realtime Withdraw History Sync
+    db.ref('withdraws').orderByChild('userId').equalTo(userId).on('value', snap => {
+      let box = document.getElementById('withdrawHistoryBox');
+      let html = '';
+      let hasData = false;
+
+      snap.forEach(child => {
+        hasData = true;
+        let item = child.val();
+        let stClass = item.status === 'pending' ? 'status-pending' : (item.status === 'approved' ? 'status-approved' : 'status-rejected');
+        let stText = item.status === 'pending' ? 'Pending' : (item.status === 'approved' ? 'Approved' : 'Rejected');
+
+        html = `
+          <div class="history-item">
+            <div>
+              <div style="font-size:13px; font-weight:bold; color:#fff;">${item.method} — ${item.amount} BDT</div>
+              <div style="font-size:11px; color:#aaa; margin-top:2px;">To: ${item.number}</div>
+            </div>
+            <span class="status-badge ${stClass}">${stText}</span>
+          </div>
+        ` + html;
+      });
+
+      if(hasData) {
+        box.innerHTML = html;
+      } else {
+        box.innerHTML = '<div class="history-empty">কোনো লেনদেনের হিস্ট্রি নেই</div>';
+      }
+    });
+
+    function onMethodChange() {
+      let m = document.getElementById('depMethod').value;
+      if(m === 'Bkash') document.getElementById('activePayNumber').innerText = bkashNumber;
+      else document.getElementById('activePayNumber').innerText = nagadNumber;
+    }
+
+    db.ref('liveGame/forceCrash').on('value', snap => { if(snap.val() === true) forceCrashTriggered = true; });
+
+    // Enhanced Push Notification UI
+    function showPushNotification(title, body, sec = 5, imgUrl = "") {
+      let toast = document.createElement('div');
+      toast.className = 'toast-msg';
+      
+      let imgTag = imgUrl ? `<img src="${imgUrl}" alt="Notif Image">` : '';
+      toast.innerHTML = `<b>${title}</b><br>${body}${imgTag}`;
+      
+      document.getElementById('toastContainer').appendChild(toast);
+      setTimeout(() => toast.remove(), sec * 1000);
+    }
+
+    function triggerNativeMobileNotification(title, body, imgUrl = "") {
+      if ("Notification" in window && Notification.permission === "granted") {
+        let options = {
+          body: body,
+          icon: imgUrl || 'https://cdn-icons-png.flaticon.com/512/1827/1827392.png',
+          image: imgUrl || null
+        };
+        new Notification(title, options);
+      }
+    }
+
+    function switchNav(tabId, el) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.nav-3d-btn').forEach(n => n.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      el.classList.add('active');
+    }
+
+    function changeBetVal(id, val) {
+      let input = document.getElementById(id);
+      let curr = parseFloat(input.value) || 0;
+      if(curr + val >= 1) { input.value = (curr + val).toFixed(2); updateBtnLabel(id); }
+    }
+    function setBetVal(id, val) { document.getElementById(id).value = val.toFixed(2); updateBtnLabel(id); }
+    function updateBtnLabel(id) {
+      let val = document.getElementById(id).value;
+      if(id === 'betAmount1' && !bet1InGame && !bet1Queued) document.getElementById('btnVal1').innerText = val + " BDT";
+      if(id === 'betAmount2' && !bet2InGame && !bet2Queued) document.getElementById('btnVal2').innerText = val + " BDT";
+    }
+
+    function copyNumber(elementId) {
+      let numText = document.getElementById(elementId).innerText.trim();
+      let tempInput = document.createElement("input");
+      tempInput.value = numText;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand("copy");
+      document.body.removeChild(tempInput);
+      showPushNotification("কপি সফল!", numText + " ক্লিপবোর্ডে কপি হয়েছে।");
+    }
+
+    // Canvas Flight Logic
+    const canvas = document.getElementById('flightCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function drawAviatorRocket(progress, isFlyingAway) {
+      canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      let endX = isFlyingAway ? canvas.width + 100 : canvas.width * Math.min(progress, 0.80);
+      let waveOffset = Math.sin(progress * 8) * 3;
+      let endY = isFlyingAway ? -100 : (canvas.height - (canvas.height * Math.min(progress, 0.80) * 0.70)) + waveOffset;
+
+      if(!isFlyingAway) {
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height);
+        ctx.quadraticCurveTo(canvas.width * 0.35, canvas.height * 0.85, endX, endY);
+        ctx.strokeStyle = '#e6002e';
+        ctx.lineWidth = 3.5;
+        ctx.stroke();
+      }
+
+      ctx.save();
+      ctx.translate(endX, endY);
+      ctx.rotate(isFlyingAway ? -Math.PI / 3 : -Math.PI / 6);
+
+      ctx.beginPath(); ctx.fillStyle = '#ff9900'; ctx.ellipse(-22, 0, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.fillStyle = '#e6002e'; ctx.ellipse(0, 0, 28, 9, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.fillStyle = '#80001a'; ctx.moveTo(-4, -2); ctx.lineTo(-14, -16); ctx.lineTo(5, -2); ctx.fill();
+      ctx.beginPath(); ctx.fillStyle = '#ffffff'; ctx.arc(14, 0, 5, -Math.PI/2, Math.PI/2); ctx.fill();
+      ctx.restore();
+    }
+
+    function handleBet(panelNum) {
+      let amt = parseFloat(document.getElementById('betAmount' + panelNum).value);
+      if(!isGameFlying) {
+        if((panelNum === 1 && !bet1Queued) || (panelNum === 2 && !bet2Queued)) {
+          if(amt > balance) return alert("পর্যাপ্ত ব্যালেন্স নেই!");
+          balance -= amt;
+          db.ref('users/' + userId).update({ balance: balance });
+          if(panelNum === 1) bet1Queued = true; else bet2Queued = true;
+          let btn = document.getElementById('btnBet' + panelNum);
+          btn.classList.add('placed');
+          btn.innerHTML = '<span style="font-size:15px;">WAITING...</span>';
+        }
+      } else {
+        if((panelNum === 1 && bet1InGame) || (panelNum === 2 && bet2InGame)) {
+          let win = amt * currentMultiplier;
+          balance += win;
+          db.ref('users/' + userId).update({ balance: balance });
+          if(panelNum === 1) bet1InGame = false; else bet2InGame = false;
+          resetBtnUI(panelNum);
+          showPushNotification("ক্যাশআউট সফল!", "+" + win.toFixed(2) + " BDT জমা হয়েছে।");
+        }
+      }
+    }
+
+    startWaitingTimer(5);
+
+    function startWaitingTimer(seconds) {
+      isGameFlying = false; forceCrashTriggered = false;
+      db.ref('liveGame/forceCrash').set(false);
+      db.ref('liveGame/currentMultiplier').set("1.00x");
+
+      let box = document.getElementById('waitingBarBox');
+      let fill = document.getElementById('waitingBarFill');
+      let status = document.getElementById('waitingStatusText');
+
+      box.style.display = 'block'; status.style.display = 'block';
+      fill.style.width = '0%';
+
+      let steps = seconds * 20; let curr = 0;
+      let timer = setInterval(() => {
+        curr++; fill.style.width = ((curr / steps) * 100) + '%';
+        if (curr >= steps) {
+          clearInterval(timer);
+          box.style.display = 'none'; status.style.display = 'none';
+
+          let targetMultiplier = 1.50;
+
+          if (balance <= 0) {
+            targetMultiplier = 16.00 + (Math.random() * 2.5);
+          } else if (balance >= (minWit * 0.80)) {
+            targetMultiplier = 1.01 + (Math.random() * 0.07);
+          } else {
+            winLossToggle = !winLossToggle;
+            if(winLossToggle) {
+              targetMultiplier = 1.80 + (Math.random() * 2.2);
+            } else {
+              targetMultiplier = 1.03 + (Math.random() * 0.12);
+            }
+          }
+
+          startFlight(targetMultiplier);
+        }
+      }, 50);
+    }
+
+    function startFlight(target) {
+      isGameFlying = true; currentMultiplier = 1.00;
+      let progress = 0.02;
+
+      if(bet1Queued) {
+        bet1InGame = true; bet1Queued = false;
+        let b1 = document.getElementById('btnBet1'); b1.classList.remove('placed'); b1.classList.add('cashout');
+        b1.innerHTML = '<span style="font-size:15px;">CASH OUT</span><div style="font-size:14px; font-weight:900;" id="coVal1">0.00 BDT</div>';
+      }
+      if(bet2Queued) {
+        bet2InGame = true; bet2Queued = false;
+        let b2 = document.getElementById('btnBet2'); b2.classList.remove('placed'); b2.classList.add('cashout');
+        b2.innerHTML = '<span style="font-size:15px;">CASH OUT</span><div style="font-size:14px; font-weight:900;" id="coVal2">0.00 BDT</div>';
+      }
+
+      flightTimer = setInterval(() => {
+        let speed = currentMultiplier > 5.0 ? 0.08 : 0.005;
+        currentMultiplier += speed;
+        progress += 0.0015;
+
+        let multStr = currentMultiplier.toFixed(2) + 'x';
+        document.getElementById('multiplierText').innerText = multStr;
+        db.ref('liveGame/currentMultiplier').set(multStr);
+
+        drawAviatorRocket(progress, false);
+
+        if(bet1InGame) {
+          let amt1 = parseFloat(document.getElementById('betAmount1').value);
+          document.getElementById('coVal1').innerText = (amt1 * currentMultiplier).toFixed(2) + " BDT";
+        }
+        if(bet2InGame) {
+          let amt2 = parseFloat(document.getElementById('betAmount2').value);
+          document.getElementById('coVal2').innerText = (amt2 * currentMultiplier).toFixed(2) + " BDT";
+        }
+
+        if(currentMultiplier >= target || forceCrashTriggered) {
+          clearInterval(flightTimer);
+          flightTimer = null;
+          
+          drawAviatorRocket(progress, true);
+          document.getElementById('multiplierText').innerText = "FLEW AWAY!";
+          db.ref('liveGame/currentMultiplier').set("FLEW AWAY!");
+
+          bet1InGame = false; bet2InGame = false;
+          resetBtnUI(1); resetBtnUI(2);
+
+          setTimeout(() => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('multiplierText').innerText = "1.00x";
+            startWaitingTimer(5);
+          }, 1800);
+        }
+      }, 60);
+    }
+
+    function resetBtnUI(num) {
+      let btn = document.getElementById('btnBet' + num);
+      let val = document.getElementById('betAmount' + num).value;
+      btn.classList.remove('cashout', 'placed');
+      btn.innerHTML = '<span style="font-size:18px;">BET</span><span style="font-size:14px;" id="btnVal' + num + '">' + val + ' BDT</span>';
+    }
+
+    function submitDeposit() {
+      let amount = parseFloat(document.getElementById('depAmount').value);
+      let trx = document.getElementById('depTrx').value.trim();
+      let method = document.getElementById('depMethod').value;
+
+      if(!amount || !trx) return alert("সবকটি ঘর পূরণ করুন!");
+      if(amount < minDep || amount > maxDep) return alert(`ডিপোজিট ${minDep} থেকে ${maxDep} BDT হতে হবে!`);
+
+      db.ref('deposits').push({ userId, userName: displayName, method, amount, trx, status: 'pending', time: Date.now() });
+      showPushNotification("সাকসেসফুল", "ডিপোজিট রিকোয়েস্ট জমা হয়েছে!");
+      document.getElementById('depAmount').value = ''; document.getElementById('depTrx').value = '';
+    }
+
+    function submitWithdraw() {
+      let amount = parseFloat(document.getElementById('witAmount').value);
+      let number = document.getElementById('witNumber').value.trim();
+      let method = document.getElementById('witMethod').value;
+
+      if(!amount || !number) return alert("সবকটি ঘর পূরণ করুন!");
+      if(amount < minWit || amount > maxWit) return alert(`উইথড্র ${minWit} থেকে ${maxWit} BDT হতে হবে!`);
+      if(amount > balance) return alert("পর্যাপ্ত ব্যালেন্স নেই!");
+
+      balance -= amount;
+      db.ref('users/' + userId).update({ balance: balance });
+      db.ref('withdraws').push({ userId, userName: displayName, method, amount, number, status: 'pending', time: Date.now() });
+      showPushNotification("সাকসেসফুল", "উইথড্র রিকোয়েস্ট জমা হয়েছে!");
+      document.getElementById('witAmount').value = ''; document.getElementById('witNumber').value = '';
+    }
+  </script>
+</body>
+</html>
