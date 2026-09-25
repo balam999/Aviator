@@ -10,7 +10,6 @@
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            /* ক্লিক করলে নীল বা অন্য কোনো হাইলাইট কালার আসার সমস্যা দূর করার জন্য */
             -webkit-tap-highlight-color: transparent;
             -webkit-touch-callout: none;
             user-select: none;
@@ -24,7 +23,6 @@
             justify-content: space-between;
             overflow: hidden;
         }
-        /* টপ মোড সিলেকশন বার */
         .top-bar {
             position: absolute;
             top: 25px;
@@ -61,7 +59,6 @@
             color: #ffffff;
         }
 
-        /* ক্যামেরা প্রিভিউ স্ক্রিন */
         .viewfinder {
             position: relative;
             width: 100%;
@@ -81,7 +78,6 @@
             display: none;
         }
 
-        /* রেকর্ডিং স্ট্যাটাস ইন্ডিকেটর */
         .rec-indicator {
             position: absolute;
             top: 80px;
@@ -104,7 +100,6 @@
             100% { opacity: 1; }
         }
 
-        /* কন্ট্রোল প্যানেল */
         .controls {
             height: 25vh;
             background: #000000;
@@ -115,7 +110,6 @@
             border-top: 1px solid rgba(255,255,255,0.05);
         }
 
-        /* গ্যালারি প্রিভিউ থাম্বনেইল বাটন (বাম পাশে) */
         .gallery-container {
             width: 50px;
             height: 50px;
@@ -144,7 +138,6 @@
             text-align: center;
         }
 
-        /* মূল শার্টার বাটন */
         .shutter-btn-wrapper {
             position: relative;
             width: 80px;
@@ -173,26 +166,27 @@
             transition: all 0.2s ease;
         }
 
-        /* ভিডিও মোড সিলেক্ট হলে শার্টার ডিজাইনে পরিবর্তন এবং লাল কালার */
+        /* ভিডিও মোড সিলেক্ট হলে লাল কালার */
         .video-mode-active .shutter-outer {
             border-color: #ff3b30;
         }
         .video-mode-active .shutter-inner {
             background: #ff3b30;
-            border-radius: 50%; /* পুরোপুরি গোল শেপ */
-            width: 62px;        /* সাইজ পুরো ফিলাপ থাকবে */
+            border-radius: 50%;
+            width: 62px;
             height: 62px;
         }
 
-        /* ক্লিক করার সাথে সাথে রিয়েল ক্যামেরার মতো জুম আউট বা নিচে চেপে যাওয়ার অ্যানিমেশন */
-        .shutter-btn-wrapper:active .shutter-outer {
-            transform: scale(0.88);
-        }
-        .shutter-btn-wrapper:active .shutter-inner {
+        /* ক্লিক করলে বা রেকর্ডিং চলাকালীন জুম আউট (ছোট হয়ে নিচে চেপে যাওয়া) অ্যানিমেশন */
+        .shutter-btn-wrapper:active .shutter-outer,
+        .recording-zoom .shutter-outer {
             transform: scale(0.82);
         }
+        .shutter-btn-wrapper:active .shutter-inner,
+        .recording-zoom .shutter-inner {
+            transform: scale(0.75);
+        }
 
-        /* ক্যামেরা ফ্লিপ বাটন (ডান পাশে) */
         .switch-btn {
             width: 50px;
             height: 50px;
@@ -226,7 +220,7 @@
 
     <div class="viewfinder">
         <div class="rec-indicator" id="recIndicator">● REC 00:00</div>
-        <video id="cameraStream" autoplay playsinline></video>
+        <video id="cameraStream" autoplay playsinline muted></video>
         <canvas id="captureCanvas"></canvas>
     </div>
 
@@ -237,8 +231,10 @@
         </div>
 
         <div class="shutter-btn-wrapper" id="shutterWrapper">
-            <div class="shutter-outer" id="shutterOuter">
-                <div class="shutter-inner" id="shutterInner"></div>
+            <div class="src-container" style="display:flex; justify-content:center; align-items:center;">
+                <div class="shutter-outer" id="shutterOuter">
+                    <div class="shutter-inner" id="shutterInner"></div>
+                </div>
             </div>
         </div>
 
@@ -270,7 +266,6 @@
         let isRecording = false;
         let lastMediaUrl = null;
 
-        // ক্যামেরা স্টার্ট করার ফাংশন
         async function startCamera(front = false) {
             if (currentStream) {
                 currentStream.getTracks().forEach(track => track.stop());
@@ -283,12 +278,11 @@
                 currentStream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = currentStream;
             } catch (err) {
-                alert("ক্যামেরা পারমিশন পাওয়া যায়নি বা ক্যামেরা ব্লক করা আছে!");
+                alert("ক্যামেরা পারমিশন পাওয়া যায়নি!");
                 console.error(err);
             }
         }
 
-        // মোড সুইচিং লজিক (PHOTO / VIDEO)
         photoModeTab.addEventListener('click', () => {
             if(isRecording) return; 
             currentMode = 'photo';
@@ -304,7 +298,6 @@
             shutterWrapper.classList.add('video-mode-active');
         });
 
-        // শার্টার বাটনে ক্লিক
         shutterWrapper.addEventListener('click', () => {
             if (currentMode === 'photo') {
                 takePhoto();
@@ -313,10 +306,9 @@
             }
         });
 
-        // ছবি তোলার ফাংশন
         function takePhoto() {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+            canvas.width = video.videoWidth || 1280;
+            canvas.height = video.videoHeight || 720;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
@@ -333,7 +325,6 @@
             a.click();
         }
 
-        // ভিডিও রেকর্ডিং শুরু/বন্ধ করার ফাংশন
         function toggleVideoRecording() {
             if (!isRecording) {
                 recordedChunks = [];
@@ -367,15 +358,18 @@
                 isRecording = true;
                 recIndicator.style.display = 'block';
                 photoModeTab.style.opacity = '0.4';
+                // ভিডিও চলাকালীন শার্টার বাটন জুম আউট (ছোট ও নিচে চেপে) থাকবে
+                shutterWrapper.classList.add('recording-zoom');
             } else {
                 mediaRecorder.stop();
                 isRecording = false;
                 recIndicator.style.display = 'none';
                 photoModeTab.style.opacity = '1';
+                // রেকর্ডিং বন্ধ হলে আবার আগের সাইজে (Zoom in) ফিরে আসবে
+                shutterWrapper.classList.remove('recording-zoom');
             }
         }
 
-        // গ্যালারি থাম্বনেইলে ক্লিক
         document.getElementById('galleryBtn').addEventListener('click', () => {
             if (lastMediaUrl) {
                 window.open(lastMediaUrl, '_blank');
@@ -384,14 +378,12 @@
             }
         });
 
-        // ক্যামেরা ফ্লিপ করা (Front / Back)
         switchBtn.addEventListener('click', () => {
             if(isRecording) return;
             useFrontCamera = !useFrontCamera;
             startCamera(useFrontCamera);
         });
 
-        // অ্যাপ লোড হওয়ার সাথে সাথে ক্যামেরা চালু
         window.addEventListener('load', () => {
             startCamera(useFrontCamera);
         });
