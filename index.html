@@ -1,1000 +1,776 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="bn" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MYBLM অ্যাপ বিল্ডার</title>
-    <!-- জিপ ফাইল ডাউনলোড লাইব্রেরি -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MicroTask - Worker App</title>
+
+    <!-- Google Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+
+    <!-- Firebase Compat SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            -webkit-tap-highlight-color: transparent;
-            outline: none !important;
-        }
-        body {
-            background-color: #f2f9f4;
-            color: #0f381e;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden; /* পুরো অ্যাপ স্ক্রল হওয়া বন্ধ রাখতে */
-        }
-
-        button, .file-tab, input {
-            position: relative;
-            transition: background 0.15s ease, transform 0.1s ease;
-        }
-        button:active, .file-tab:active {
-            background-color: rgba(255, 255, 255, 0.7) !important;
-            transform: scale(0.96);
+        :root {
+            --primary: #10B981;
+            --primary-dark: #059669;
+            --primary-light: #D1FAE5;
+            --bg-main: #F8FAFC;
+            --bg-card: #FFFFFF;
+            --text-main: #0F172A;
+            --text-muted: #64748B;
+            --border: #E2E8F0;
+            --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+            --radius-lg: 20px;
+            --radius-md: 14px;
+            --radius-sm: 8px;
+            --nav-height: 68px;
         }
 
-        /* মোডাল ডিজাইন */
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(15, 56, 30, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            backdrop-filter: blur(3px);
-        }
-        .modal-content {
-            background: #ffffff;
-            padding: 25px;
-            border-radius: 20px;
-            width: 85%;
-            max-width: 350px;
-            text-align: center;
-            box-shadow: 0 10px 25px rgba(27, 94, 32, 0.15);
-        }
-        .modal-content h3 {
-            margin-bottom: 15px;
-            color: #1b5e20;
-            font-size: 18px;
-        }
-        .modal-content input, .modal-content textarea {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #c8e6c9;
-            border-radius: 15px;
-            margin-bottom: 15px;
-            font-size: 14px;
-            background: #f9fbf9;
-            text-align: left;
-        }
-        .modal-content button {
-            background: #2e7d32;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 30px;
-            cursor: pointer;
-            font-weight: bold;
-            width: 100%;
-            font-size: 15px;
-            box-shadow: 0 4px 10px rgba(46, 125, 50, 0.3);
+        [data-theme="dark"] {
+            --bg-main: #0F172A;
+            --bg-card: #1E293B;
+            --text-main: #F8FAFC;
+            --text-muted: #94A3B8;
+            --border: #334155;
+            --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            --primary-light: rgba(16, 185, 129, 0.15);
         }
 
-        /* ড্রপডাউন থ্রি ডট মেনু */
-        .dropdown-menu {
-            display: none;
-            position: absolute;
-            top: 50px;
-            right: 15px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
-            z-index: 2500;
-            overflow: hidden;
-            border: 1px solid #c8e6c9;
-            width: 160px;
-        }
-        .dropdown-menu button {
-            width: 100%;
-            background: none;
-            border: none;
-            padding: 12px 15px;
-            text-align: left;
-            font-size: 14px;
-            color: #1b5e20;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .dropdown-menu button:hover {
-            background: #e8f5e9;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--bg-main); color: var(--text-main); max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: calc(var(--nav-height) + 20px); position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.08); transition: background 0.3s; }
 
-        /* এআই চ্যাটবট পপআপ উইন্ডো */
-        #aiChatPopup {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 2000;
-            justify-content: center;
-            align-items: center;
-            backdrop-filter: blur(4px);
-        }
-        .chat-popup-box {
-            background: #ffffff;
-            width: 90%;
-            max-width: 600px;
-            height: 85vh;
-            border-radius: 20px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
-        }
-        .chat-header {
-            background: #1b5e20;
-            color: white;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: bold;
-            font-size: 16px;
-        }
-        .chat-close-btn {
-            background: transparent;
-            color: white;
-            border: none;
-            font-size: 20px;
-            cursor: pointer;
-        }
-        .chat-body {
-            flex: 1;
-            padding: 15px;
-            overflow-y: auto;
-            background: #f9fbf9;
-            font-size: 14px;
-            line-height: 1.5;
-            color: #0f381e;
-            white-space: pre-wrap;
-            font-family: 'Courier New', Courier, monospace;
-            border-bottom: 1px solid #c8e6c9;
-        }
-        .chat-extra-section {
-            padding: 10px 15px;
-            background: #e8f5e9;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        .chat-extra-section label {
-            font-size: 12px;
-            font-weight: bold;
-            color: #1b5e20;
-        }
-        .chat-extra-section textarea {
-            width: 100%;
-            height: 50px;
-            padding: 8px;
-            border: 1px solid #a5d6a7;
-            border-radius: 10px;
-            font-size: 13px;
-            resize: none;
-            background: white;
-        }
-        .chat-footer {
-            padding: 12px 15px;
-            background: #e8f5e9;
-            display: flex;
-            gap: 10px;
-            border-top: 1px solid #c8e6c9;
-        }
-        .chat-footer button {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            border-radius: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 13px;
-        }
-        .btn-copy { background: #2e7d32; color: white; }
-        .btn-insert { background: #1b5e20; color: white; }
+        .app-header { position: sticky; top: 0; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; z-index: 900; border-bottom: 1px solid var(--border); }
+        [data-theme="dark"] .app-header { background: rgba(30, 41, 59, 0.85); }
 
-        /* হিস্ট্রি মোডাল */
-        #historyModal .modal-content {
-            max-width: 450px;
-            text-align: left;
-            max-height: 80vh;
-            display: flex;
-            flex-direction: column;
-        }
-        .history-list {
-            flex: 1;
-            overflow-y: auto;
-            max-height: 300px;
-            margin-top: 10px;
-            border: 1px solid #c8e6c9;
-            border-radius: 10px;
-            padding: 10px;
-            background: #f9fbf9;
-        }
-        .history-item {
-            padding: 10px;
-            background: white;
-            border-bottom: 1px solid #e8f5e9;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            font-size: 13px;
-        }
-        .history-item:hover {
-            background: #e8f5e9;
-        }
+        .screen { display: none; padding: 20px; animation: fadeIn 0.25s ease-out; }
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* হেডার */
-        header {
-            background-color: #1b5e20;
-            color: white;
-            padding: 12px 18px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            position: relative;
-        }
-        .project-title-display {
-            font-size: 16px;
-            font-weight: bold;
-        }
-        .nav-tabs {
-            display: flex;
-            gap: 6px;
-            background: #144517;
-            padding: 3px;
-            border-radius: 20px;
-        }
-        .tab-btn {
-            background: transparent;
-            color: #c8e6c9;
-            border: none;
-            padding: 6px 14px;
-            border-radius: 15px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 13px;
-        }
-        .tab-btn.active {
-            background: #ffffff;
-            color: #1b5e20;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
+        .badge { background: var(--primary-light); color: var(--primary-dark); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; }
+        .badge-pending { background: #FEF3C7; color: #D97706; }
+        .badge-approved { background: #D1FAE5; color: #059669; }
+        .badge-rejected { background: #FEE2E2; color: #DC2626; }
 
-        /* ফাইল বার এবং অ্যাকশন বাটন */
-        .top-action-bar {
-            background-color: #e8f5e9;
-            display: flex;
-            align-items: center;
-            padding: 8px 12px;
-            gap: 8px;
-            border-bottom: 1px solid #c8e6c9;
-        }
-        .file-bar {
-            display: flex;
-            gap: 6px;
-            overflow-x: auto;
-            flex: 1;
-            scrollbar-width: none;
-        }
-        .file-bar::-webkit-scrollbar {
-            display: none;
-        }
-        .file-tab {
-            background: #ffffff;
-            color: #2e7d32;
-            padding: 7px 14px;
-            border-radius: 20px;
-            font-size: 13px;
-            cursor: pointer;
-            border: 1px solid #a5d6a7;
-            white-space: nowrap;
-            font-weight: 500;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-        }
-        .file-tab.active {
-            background: #2e7d32;
-            color: white;
-            border-color: #2e7d32;
-        }
-        .action-icon-btn {
-            background: #2e7d32;
-            color: white;
-            border: none;
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            font-size: 14px;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-shrink: 0;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
+        .input-group { margin-bottom: 16px; position: relative; }
+        .input-group label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; color: var(--text-muted); }
+        .form-control { width: 100%; padding: 14px 16px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main); outline: none; font-size: 14px; transition: 0.2s; }
+        .form-control:focus { border-color: var(--primary); }
+        .eye-btn { position: absolute; right: 14px; top: 36px; color: var(--text-muted); cursor: pointer; border: none; background: none; }
 
-        /* এআই কমান্ড বার */
-        .ai-command-bar {
-            background-color: #f2f9f4;
-            padding: 8px 12px;
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            border-bottom: 1px solid #c8e6c9;
-        }
-        .ai-command-bar input {
-            flex: 1;
-            padding: 8px 15px;
-            border: 1px solid #a5d6a7;
-            border-radius: 20px;
-            font-size: 13px;
-            background: white;
-        }
-        .ai-command-bar button {
-            background: #1b5e20;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: bold;
-        }
+        .btn { width: 100%; padding: 14px; border-radius: var(--radius-md); border: none; font-weight: 700; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        /* সার্চ প্যানেল */
-        .search-panel {
-            background-color: #f2f9f4;
-            padding: 10px 15px;
-            display: none;
-            gap: 8px;
-            align-items: center;
-            border-bottom: 1px solid #c8e6c9;
-        }
-        .search-panel.active {
-            display: flex;
-        }
-        .search-panel input {
-            flex: 1;
-            padding: 8px 15px;
-            border: 1px solid #a5d6a7;
-            border-radius: 20px;
-            font-size: 13px;
-            background: white;
-        }
-        .search-panel button {
-            background: #2e7d32;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        .search-info {
-            font-size: 12px;
-            color: #2e7d32;
-            white-space: nowrap;
-            font-weight: bold;
-        }
+        .wallet-card { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 22px; border-radius: var(--radius-lg); margin-bottom: 20px; box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4); }
 
-        /* এডিটর কন্টেইনার */
-        .editor-wrapper {
-            flex: 1;
-            display: flex;
-            background: white;
-            overflow: hidden;
-            position: relative;
-        }
-        .line-numbers {
-            width: 50px;
-            background-color: #e8f5e9;
-            color: #2e7d32;
-            padding: 18px 8px;
-            text-align: right;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 16px;
-            line-height: 1.7;
-            user-select: none;
-            overflow: hidden;
-            border-right: 1px solid #c8e6c9;
-            font-weight: bold;
-        }
-        textarea#codeEditor {
-            flex: 1;
-            width: calc(100% - 50px);
-            padding: 18px;
-            font-size: 16px;
-            border: none;
-            background-color: #ffffff;
-            color: #0f381e;
-            resize: none;
-            line-height: 1.7;
-            font-family: 'Courier New', Courier, monospace;
-            white-space: pre;
-            overflow-wrap: normal;
-            overflow-x: auto;
-            font-weight: 500;
-        }
+        .cat-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 16px; scrollbar-width: none; }
+        .cat-scroll::-webkit-scrollbar { display: none; }
+        .cat-chip { padding: 8px 16px; border-radius: 30px; background: var(--bg-card); border: 1px solid var(--border); font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; color: var(--text-muted); }
+        .cat-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
 
-        .symbol-bar {
-            background-color: #e8f5e9;
-            padding: 10px 12px;
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            border-top: 1px solid #c8e6c9;
-            scrollbar-width: none;
-        }
-        .symbol-bar::-webkit-scrollbar {
-            display: none;
-        }
-        .sym-btn {
-            background: white;
-            color: #2e7d32;
-            border: 1px solid #a5d6a7;
-            padding: 6px 14px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: bold;
-            white-space: nowrap;
-        }
+        .job-card { background: var(--bg-card); border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border); margin-bottom: 16px; box-shadow: var(--shadow); }
+        .job-card-thumb { width: 100%; height: 140px; object-fit: cover; background: #e2e8f0; }
+        .job-card-body { padding: 16px; }
 
-        iframe#previewFrame {
-            flex: 1;
-            width: 100%;
-            border: none;
-            background: white;
-        }
-        
-        footer {
-            background-color: #144517;
-            color: #c8e6c9;
-            padding: 6px 15px;
-            font-size: 11px;
-            text-align: center;
-        }
+        .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; height: var(--nav-height); background: var(--bg-card); border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: center; z-index: 1000; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-muted); font-size: 11px; font-weight: 600; text-decoration: none; width: 20%; cursor: pointer; position: relative; }
+        .nav-item.active { color: var(--primary); }
+        .nav-badge { position: absolute; top: -2px; right: 22px; background: #EF4444; color: white; border-radius: 10px; font-size: 10px; padding: 2px 6px; font-weight: 800; }
+
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: flex-end; flex-direction: column; z-index: 2000; backdrop-filter: blur(4px); }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--bg-card); border-top-left-radius: 24px; border-top-right-radius: 24px; padding: 24px; max-height: 90vh; overflow-y: auto; }
+
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #10B981; color: white; padding: 12px 24px; border-radius: 30px; font-size: 14px; font-weight: 600; z-index: 3000; opacity: 0; transition: all 0.3s ease; box-shadow: 0 10px 20px rgba(0,0,0,0.15); }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .toast.error { background: #EF4444; }
+
+        .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+        .gallery-img { width: 100%; height: 80px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 1px solid var(--border); }
+
+        .full-view { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index:4000; display:none; align-items:center; justify-content:center; }
+        .full-view img { max-width:90%; max-height:80%; border-radius:12px; }
+
+        .clickable-link { color: var(--primary); font-weight: 700; text-decoration: underline; word-break: break-all; }
+        .avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 700; border: 2px solid var(--primary); object-fit: cover; }
     </style>
 </head>
 <body>
 
-    <!-- ১. ইমেইল ইনপুট মোডাল -->
-    <div id="emailModal" class="modal">
+    <div id="toast" class="toast">Operation completed</div>
+
+    <!-- Image Full Viewer -->
+    <div id="imageViewer" class="full-view" onclick="this.style.display='none'">
+        <img id="imageViewerSrc" src="" alt="Enlarged View">
+    </div>
+
+    <!-- Auth View Container -->
+    <div id="authContainer" class="screen active">
+        <div style="text-align: center; margin-top: 30px;">
+            <span class="material-icons-round" style="font-size: 56px; color: var(--primary);">work</span>
+            <h2 style="font-size: 24px; font-weight: 800;">MicroTask Market</h2>
+            <p style="color: var(--text-muted); font-size: 14px;">Complete tasks, earn money real time</p>
+        </div>
+
+        <div id="loginCard" style="background: var(--bg-card); padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--border); margin-top: 24px;">
+            <h3 style="margin-bottom: 16px;">Sign In</h3>
+            <div class="input-group">
+                <label>Email</label>
+                <input type="email" id="loginEmail" class="form-control" placeholder="user@example.com">
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="loginPass" class="form-control" placeholder="••••••••">
+                <button class="eye-btn" onclick="togglePass('loginPass')"><span class="material-icons-round">visibility</span></button>
+            </div>
+            <button class="btn btn-primary" id="loginBtn" onclick="handleLogin()">Sign In</button>
+            <p style="text-align: center; margin-top: 14px; font-size: 13px;">Don't have an account? <a href="javascript:void(0)" onclick="toggleAuth('signup')" style="color:var(--primary); font-weight:700;">Sign Up</a></p>
+        </div>
+
+        <div id="signupCard" style="background: var(--bg-card); padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--border); margin-top: 24px; display:none;">
+            <h3 style="margin-bottom: 16px;">Create Account</h3>
+            <div class="input-group"><label>Full Name</label><input type="text" id="regName" class="form-control"></div>
+            <div class="input-group"><label>Username</label><input type="text" id="regUser" class="form-control"></div>
+            <div class="input-group"><label>Email</label><input type="email" id="regEmail" class="form-control"></div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="regPass" class="form-control">
+                <button class="eye-btn" onclick="togglePass('regPass')"><span class="material-icons-round">visibility</span></button>
+            </div>
+            <button class="btn btn-primary" id="signupBtn" onclick="handleSignup()">Create Account</button>
+            <p style="text-align: center; margin-top: 14px; font-size: 13px;">Already registered? <a href="javascript:void(0)" onclick="toggleAuth('login')" style="color:var(--primary); font-weight:700;">Sign In</a></p>
+        </div>
+    </div>
+
+    <!-- Main Dashboard Container -->
+    <div id="mainDashboard" style="display: none;">
+        <header class="app-header">
+            <div style="display:flex; align-items:center; gap:10px;" onclick="switchTab('profile')">
+                <img id="headerAvatar" class="avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'><rect width='100%' height='100%' fill='%23D1FAE5'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='20' fill='%2310B981'>U</text></svg>">
+                <div>
+                    <div style="font-size: 10px; color: var(--text-muted)">Welcome</div>
+                    <div id="headerUserName" style="font-weight: 800; font-size: 14px;">Worker</div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 12px; align-items:center;">
+                <button onclick="toggleTheme()" style="background:none; border:none; color:var(--text-main); font-size:24px; cursor:pointer;"><span class="material-icons-round" id="themeIcon">dark_mode</span></button>
+                <div style="position:relative; cursor:pointer;" onclick="switchTab('notifications')">
+                    <span class="material-icons-round" style="font-size:26px;">notifications</span>
+                    <span id="notifBadge" class="nav-badge" style="display:none; top:-4px; right:-4px;">0</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- SCREEN 1: HOME -->
+        <section id="homeScreen" class="screen active">
+            <div class="wallet-card">
+                <div style="font-size: 12px; opacity: 0.9;">Main Balance</div>
+                <div id="homeBalance" style="font-size: 32px; font-weight: 800; margin: 4px 0;">৳ 0.00</div>
+                <div style="display: flex; justify-content: space-between; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2);">
+                    <div><div style="font-size: 10px;">Posting Balance</div><div id="homePostingBal" style="font-weight: 700">৳ 0.00</div></div>
+                    <div><div style="font-size: 10px;">Total Earned</div><div id="homeEarned" style="font-weight: 700">৳ 0.00</div></div>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <input type="text" id="searchInput" class="form-control" placeholder="Search tasks..." oninput="searchJobs(this.value)">
+            </div>
+
+            <div class="cat-scroll">
+                <div class="cat-chip active" onclick="filterCategory('All', this)">All Tasks</div>
+                <div class="cat-chip" onclick="filterCategory('Data Entry', this)">Data Entry</div>
+                <div class="cat-chip" onclick="filterCategory('Writing', this)">Writing</div>
+                <div class="cat-chip" onclick="filterCategory('Social Media', this)">Social Media</div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <div id="searchCount" style="font-size:12px; color:var(--text-muted); font-weight:700;">Loading tasks...</div>
+                <select id="sortJobsSelect" onchange="renderJobsList()" style="border:none; background:none; font-size:12px; font-weight:700; color:var(--primary); outline:none;">
+                    <option value="newest">Newest First</option>
+                    <option value="highest">Highest Paying</option>
+                </select>
+            </div>
+
+            <div id="jobListContainer"></div>
+        </section>
+
+        <!-- SCREEN 2: FULL JOB DETAILS -->
+        <section id="jobDetailsScreen" class="screen">
+            <button class="btn" onclick="switchTab('home')" style="width:auto; padding:6px 12px; background:var(--border); color:var(--text-main); margin-bottom:12px;"><span class="material-icons-round">arrow_back</span> Back to Tasks</button>
+            <div id="jobDetailsContent"></div>
+        </section>
+
+        <!-- SCREEN 3: ORDERS / SUBMISSIONS -->
+        <section id="ordersScreen" class="screen">
+            <h3 style="margin-bottom:16px;">Submitted Proofs</h3>
+            <div id="mySubmissionsContainer"></div>
+        </section>
+
+        <!-- SCREEN 4: WALLET -->
+        <section id="walletScreen" class="screen">
+            <div class="wallet-card">
+                <div style="font-size: 12px; opacity: 0.9;">Posting Balance</div>
+                <div id="walletPostingBal" style="font-size: 32px; font-weight: 800; margin: 4px 0;">৳ 0.00</div>
+                <button class="btn" onclick="openModal('depositModal')" style="background: white; color: var(--primary-dark); margin-top: 10px;">Deposit Funds</button>
+            </div>
+
+            <h4 style="margin-bottom: 12px;">Request Withdrawal</h4>
+            <div style="background:var(--bg-card); padding:16px; border-radius:var(--radius-lg); border:1px solid var(--border);">
+                <div class="input-group"><label>Method</label><select id="wMethod" class="form-control"><option>bKash</option><option>Nagad</option></select></div>
+                <div class="input-group"><label>Account Number</label><input type="text" id="wAcc" class="form-control" placeholder="01700000000"></div>
+                <div class="input-group"><label>Amount BDT</label><input type="number" id="wAmt" class="form-control" placeholder="Min 100"></div>
+                <button class="btn btn-primary" id="wBtn" onclick="requestWithdrawal()">Submit Withdrawal</button>
+            </div>
+        </section>
+
+        <!-- SCREEN 5: NOTIFICATIONS -->
+        <section id="notificationsScreen" class="screen">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h3>Notifications</h3>
+                <button onclick="requestPushPermission()" style="background:var(--primary-light); color:var(--primary-dark); border:none; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700;">Enable Push</button>
+            </div>
+            <div id="notificationsList"></div>
+        </section>
+
+        <!-- SCREEN 6: PROFILE -->
+        <section id="profileScreen" class="screen">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <img id="profileImg" class="avatar" style="width: 80px; height: 80px; margin: 0 auto 10px auto;" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'><rect width='100%' height='100%' fill='%23D1FAE5'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='32' fill='%2310B981'>U</text></svg>">
+                <h3 id="pName">Worker</h3>
+                <p id="pEmail" style="color: var(--text-muted); font-size: 13px;">user@example.com</p>
+            </div>
+
+            <div style="background:var(--bg-card); border-radius:var(--radius-lg); border:1px solid var(--border); padding:16px; margin-bottom:16px;">
+                <h4 style="margin-bottom:12px;">Edit Profile</h4>
+                <div class="input-group"><label>Profile Image</label><input type="file" id="pPicInput" accept="image/*" class="form-control"></div>
+                <div class="input-group"><label>Full Name</label><input type="text" id="pNameInput" class="form-control"></div>
+                <div class="input-group"><label>Username</label><input type="text" id="pUserInput" class="form-control"></div>
+                <button class="btn btn-primary" id="saveProfileBtn" onclick="updateProfile()">Save Profile</button>
+            </div>
+
+            <div style="background:var(--bg-card); border-radius:var(--radius-lg); border:1px solid var(--border); padding:16px; margin-bottom:16px;">
+                <h4 style="margin-bottom:12px;">Security</h4>
+                <div class="input-group"><label>New Password</label><input type="password" id="pNewPass" class="form-control"></div>
+                <button class="btn" style="background:var(--border);" id="savePassBtn" onclick="updatePassword()">Update Password</button>
+            </div>
+
+            <div style="text-align:center;">
+                <button onclick="handleLogout()" style="background:none; border:none; color:#EF4444; font-weight:700; cursor:pointer; font-size:14px;">Log Out</button>
+            </div>
+        </section>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <div class="nav-item active" onclick="switchTab('home', this)"><span class="material-icons-round">home</span><span>Home</span></div>
+            <div class="nav-item" onclick="switchTab('orders', this)"><span class="material-icons-round">assignment</span><span>Orders</span></div>
+            <div class="nav-item" onclick="switchTab('wallet', this)"><span class="material-icons-round">account_balance_wallet</span><span>Wallet</span></div>
+            <div class="nav-item" onclick="switchTab('notifications', this)"><span class="material-icons-round">notifications</span><span>Alerts</span><span id="navNotifBadge" class="nav-badge" style="display:none;">0</span></div>
+            <div class="nav-item" onclick="switchTab('profile', this)"><span class="material-icons-round">person</span><span>Profile</span></div>
+        </nav>
+    </div>
+
+    <!-- MODAL: DEPOSIT -->
+    <div id="depositModal" class="modal">
         <div class="modal-content">
-            <h3>MYBLM এ স্বাগতম</h3>
-            <p style="font-size: 13px; margin-bottom: 12px; color: #2e7d32;">চালিয়ে যেতে আপনার ইমেইল এড্রেসটি দিন:</p>
-            <input type="email" id="userEmailInput" placeholder="example@gmail.com">
-            <button onclick="saveUserEmail()">প্রবেশ করুন</button>
-        </div>
-    </div>
-
-    <!-- ২. প্রজেক্ট ওপেনিং মোডাল -->
-    <div id="projectModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <h3>নতুন প্রজেক্ট তৈরি করুন</h3>
-            <input type="text" id="projectNameInput" placeholder="প্রজেক্টের নাম..." value="MYBLM AI অ্যাপ">
-            <button onclick="createProject()">ওকে (OK)</button>
-        </div>
-    </div>
-
-    <!-- ৩. হিস্ট্রি মোডাল -->
-    <div id="historyModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <h3>📜 প্রজেক্ট হিস্ট্রি</h3>
-            <div class="history-list" id="historyListContainer">
-                <p style="text-align: center; font-size: 13px; color: #666;">লোড হচ্ছে...</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h4>Deposit Funds</h4>
+                <span class="material-icons-round" onclick="closeModal('depositModal')" style="cursor: pointer;">close</span>
             </div>
-            <button style="margin-top: 15px;" onclick="closeHistoryModal()">বন্ধ করুন</button>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Send BDT to bKash Personal Number:</p>
+            <div style="background: var(--primary-light); padding: 12px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <span style="font-weight: 800; color: var(--primary-dark);">01721972119</span>
+                <button onclick="copyText('01721972119')" style="background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 12px;">Copy</button>
+            </div>
+            <div class="input-group"><label>Amount BDT</label><input type="number" id="depAmt" class="form-control" placeholder="100"></div>
+            <div class="input-group"><label>TrxID</label><input type="text" id="depTrx" class="form-control" placeholder="8X291A20K"></div>
+            <button class="btn btn-primary" id="depBtn" onclick="submitDeposit()">Submit Request</button>
         </div>
     </div>
-
-    
-
-    <!-- ৫. থ্রি ডট ড্রপডাউন মেনু -->
-    <div class="dropdown-menu" id="dropdownMenu">
-        <button onclick="openTelegramSupport()">💬 সাপোর্ট</button>
-        </div>
-
-    <!-- ৬. এআই চ্যাটবট পপআপ উইন্ডো -->
-    <div id="aiChatPopup">
-        <div class="chat-popup-box">
-            <div class="chat-header">
-                <span>🤖 MYBLM এআই রেসপন্স</span>
-                <button class="chat-close-btn" onclick="closeChatPopup()">✕</button>
-            </div>
-            <div class="chat-body" id="chatPopupContent"></div>
-            
-            <div class="chat-extra-section">
-                <label for="extraChatInput">✏️ আরও কিছু লিখুন (যদি কোডের সাথে যুক্ত করতে চান):</label>
-                <textarea id="extraChatInput" placeholder="এখানে আপনার অতিরিক্ত লেখা বা নির্দেশনা দিন..."></textarea>
-            </div>
-
-            <div class="chat-footer">
-                <button class="btn-copy" onclick="copyChatContentOnly()">📋 শুধু কোড কপি করুন</button>
-                <button class="btn-insert" onclick="insertChatToEditor()">📥 এডিটরে বসান</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- হেডার -->
-    <header>
-        <span class="project-title-display" id="displayProjName">MYBLM AI প্রজেক্ট</span>
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <div class="nav-tabs">
-                <button class="tab-btn active" id="editorTabBtn" onclick="switchView('editor')">কোড</button>
-                <button class="tab-btn" id="previewTabBtn" onclick="switchView('preview')">প্রিভিউ</button>
-            </div>
-            <!-- থ্রি ডট আইকন বাটন -->
-            <button onclick="toggleDropdownMenu()" style="background:none; border:none; color:white; font-size:20px; cursor:pointer; padding: 0 5px;">⋮</button>
-        </div>
-    </header>
-
-    <!-- ফাইল বার ও অ্যাকশন বাটন -->
-    <div class="top-action-bar" id="topActionBar">
-        <div class="file-bar" id="fileBar"></div>
-        <button class="action-icon-btn" onclick="openHistoryModal()" title="হিস্ট্রি বাটন">📜</button>
-        <button class="action-icon-btn" onclick="downloadZip()" title="জিপ ফাইল ডাউনলোড">📥</button>
-        <button class="action-icon-btn" onclick="toggleSearchPanel()" title="সার্চ">🔍</button>
-        <button class="action-icon-btn" onclick="addNewFilePrompt()" title="নতুন ফাইল">+</button>
-    </div>
-
-    <!-- এআই কমান্ড বার -->
-    <div class="ai-command-bar" id="aiCommandBar">
-        <input type="text" id="aiPromptInput" placeholder="🤖 MYBLM এআই-কে বলুন...">
-        <button onclick="askOpenRouterAPI()">জেনারেট</button>
-    </div>
-
-    <!-- সার্চ বার প্যানেল -->
-    <div class="search-panel" id="searchPanel">
-        <input type="text" id="searchInput" placeholder="কোড সার্চ করুন..." oninput="resetSearch()">
-        <span class="search-info" id="searchInfo">0/0</span>
-        <button onclick="findNextCode()">নেক্সট</button>
-    </div>
-
-    <!-- মেইন বডি -->
-    <div class="main-container" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
-        <div id="editorView" class="view-section active" style="display: flex; flex-direction: column; flex: 1; height: 100%;">
-            <div class="editor-wrapper" style="flex: 1;">
-                <div class="line-numbers" id="lineNumbers">1</div>
-                <textarea id="codeEditor" placeholder="এখানে কোড লিখুন বা এডিট করুন..." oninput="onCodeInput()" onscroll="syncScroll()"></textarea>
-            </div>
-            
-            <div class="symbol-bar" id="symbolBar">
-                <button class="sym-btn" onclick="insertCode('&lt;')">&lt;</button>
-                <button class="sym-btn" onclick="insertCode('&gt;')">&gt;</button>
-                <button class="sym-btn" onclick="insertCode('/')">/</button>
-                <button class="sym-btn" onclick="insertCode('=')">=</button>
-                <button class="sym-btn" onclick="insertCode('&quot;')">"</button>
-                <button class="sym-btn" onclick="insertCode('&lt;h1&gt;')">&lt;h1&gt;</button>
-                <button class="sym-btn" onclick="insertCode('&lt;p&gt;')">&lt;p&gt;</button>
-                <button class="sym-btn" onclick="insertCode(';')">;</button>
-            </div>
-        </div>
-
-        <div id="previewView" class="view-section" style="display: none; flex: 1; height: 100%;">
-            <iframe id="previewFrame" style="flex: 1; width: 100%; height: 100%;"></iframe>
-        </div>
-    </div>
-
-    <footer>
-        MYBLM অ্যাপ বিল্ডার - সমস্ত অধিকার সংরক্ষিত
-    </footer>
 
     <script>
-        // Firebase Configuration
         const firebaseConfig = {
-          apiKey: "AIzaSyDd2_UqUgeT_UBK1MoYB9kk9RHoj3d80GQ",
-          authDomain: "message-patal.firebaseapp.com",
-          databaseURL: "https://message-patal-default-rtdb.firebaseio.com",
-          projectId: "message-patal",
-          storageBucket: "message-patal.firebasestorage.app",
-          messagingSenderId: "419002900103",
-          appId: "1:419002900103:web:cda4edf8d7fb7230d4e222",
-          measurementId: "G-ZY08G0K1J5"
-        };
+  apiKey: "AIzaSyDd2_UqUgeT_UBK1MoYB9kk9RHoj3d80GQ",
+  authDomain: "message-patal.firebaseapp.com",
+  databaseURL: "https://message-patal-default-rtdb.firebaseio.com",
+  projectId: "message-patal",
+  storageBucket: "message-patal.firebasestorage.app",
+  messagingSenderId: "419002900103",
+  appId: "1:419002900103:web:cda4edf8d7fb7230d4e222",
+  measurementId: "G-ZY08G0K1J5"
+};
 
         firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+        const db = firebase.database();
+        const auth = firebase.auth();
+        const storage = firebase.storage();
 
-        let currentUserEmail = localStorage.getItem('myblm_user_email') || '';
-        let telegramChannelUrl = localStorage.getItem('myblm_tg_link') || 'https://t.me/MYBLM1';
-        let files = {};
-        let currentFile = 'index.html';
-        let searchMatches = [];
-        let currentMatchIndex = -1;
-        let pureAiCodeText = '';
+        let currentUser = null;
+        let userData = {};
+        let allJobsCache = {};
+        let currentCatFilter = 'All';
+        let activeJobId = null;
+        let activeJobData = null;
+        let sessionListener = null;
 
-        const OPENROUTER_API_KEY = "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";
-
-        window.onload = function() {
-            if (!currentUserEmail) {
-                document.getElementById('emailModal').style.display = 'flex';
+        // AUTH SYSTEM
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUser = user;
+                initSessionTracker();
+                document.getElementById('authContainer').style.display = 'none';
+                document.getElementById('mainDashboard').style.display = 'block';
+                loadUserData();
             } else {
-                document.getElementById('emailModal').style.display = 'none';
-                document.getElementById('projectModal').style.display = 'flex';
-            }
-        };
-
-        function saveUserEmail() {
-            const emailInput = document.getElementById('userEmailInput').value.trim();
-            if(!emailInput || !emailInput.includes('@')) {
-                return alert('দয়া করে একটি সঠিক ইমেইল এড্রেস দিন!');
-            }
-            currentUserEmail = emailInput.replace(/[.#$[\]]/g, '_');
-            localStorage.setItem('myblm_user_email', currentUserEmail);
-            document.getElementById('emailModal').style.display = 'none';
-            document.getElementById('projectModal').style.display = 'flex';
-        }
-
-        // থ্রি ডট ড্রপডাউন টগল
-        function toggleDropdownMenu() {
-            const menu = document.getElementById('dropdownMenu');
-            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-        }
-
-        // সাপোর্ট অপশনে ক্লিক করলে টেলিগ্রাম চ্যানেলে যাওয়া
-        function openTelegramSupport() {
-            toggleDropdownMenu();
-            window.open(telegramChannelUrl, '_blank');
-        }
-
-       
-
-        // উইন্ডোতে ক্লিক করলে ড্রপডাউন বন্ধ হওয়া
-        window.addEventListener('click', (e) => {
-            if (!e.target.closest('#dropdownMenu') && !e.target.closest('header button')) {
-                document.getElementById('dropdownMenu').style.display = 'none';
+                if(sessionListener) sessionListener.off();
+                document.getElementById('authContainer').style.display = 'block';
+                document.getElementById('mainDashboard').style.display = 'none';
             }
         });
 
-        function createProject() {
-            const name = document.getElementById('projectNameInput').value.trim();
-            if(!name) return alert('প্রজেক্টের নাম দিন!');
+        // SINGLE SESSION ENFORCEMENT
+        function initSessionTracker() {
+            const sessionId = 'sess_' + Math.random().toString(36).substring(2, 9);
+            const sessionRef = db.ref(`users/${currentUser.uid}/activeSession`);
             
-            document.getElementById('displayProjName').innerText = name;
-            document.getElementById('projectModal').style.display = 'none';
-
-            files['index.html'] = `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>${name}</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; background: #e8f5e9; padding: 50px; color: #1b5e20; }
-        h1 { font-size: 28px; }
-        button { background: #2e7d32; color: white; border: none; padding: 12px 24px; border-radius: 20px; font-size: 16px; cursor: pointer; margin-top: 20px; }
-    </style>
-</head>
-<body>
-    <h1>MYBLM এ আপনাকে স্বাগতম 🤩</h1>
-    <p>এআই দিয়ে আপনার কোড তৈরি করুন।</p>
-    <button onclick="alert('MYBLM অ্যাপ কাজ করছে!')">ক্লিক করুন</button>
-</body>
-</html>`;
-
-            renderFileTabs();
-            openFile('index.html');
-            saveProjectToFirebase(name);
-        }
-
-        function saveProjectToFirebase(projectName) {
-            if (!currentUserEmail) return;
-            const projectData = {
-                name: projectName,
-                timestamp: Date.now(),
-                files: files
-            };
-            const sanitizedEmail = currentUserEmail.replace('.', '_');
-            database.ref('users/' + sanitizedEmail + '/projects/' + Date.now()).set(projectData);
-        }
-
-        function openHistoryModal() {
-            document.getElementById('historyModal').style.display = 'flex';
-            loadHistoryFromFirebase();
-        }
-
-        function closeHistoryModal() {
-            document.getElementById('historyModal').style.display = 'none';
-        }
-
-        function loadHistoryFromFirebase() {
-            const container = document.getElementById('historyListContainer');
-            container.innerHTML = '<p style="text-align: center; font-size: 13px; color: #666;">লোড হচ্ছে...</p>';
-            
-            if (!currentUserEmail) return;
-            const sanitizedEmail = currentUserEmail.replace('.', '_');
-
-            database.ref('users/' + sanitizedEmail + '/projects').once('value').then((snapshot) => {
-                container.innerHTML = '';
-                if (!snapshot.exists()) {
-                    container.innerHTML = '<p style="text-align: center; font-size: 13px; color: #666;">কোনো হিস্ট্রি পাওয়া যায়নি।</p>';
-                    return;
+            sessionRef.set(sessionId);
+            sessionListener = sessionRef.on('value', snap => {
+                if(snap.exists() && snap.val() !== sessionId) {
+                    showToast('Logged in from another device/browser!', true);
+                    auth.signOut();
                 }
-
-                snapshot.forEach((childSnapshot) => {
-                    const proj = childSnapshot.val();
-                    const dateStr = new Date(proj.timestamp).toLocaleString();
-                    const item = document.createElement('div');
-                    item.className = 'history-item';
-                    item.innerHTML = `<strong>📁 ${proj.name}</strong><br><span style="font-size: 11px; color: #666;">তারিখ: ${dateStr}</span>`;
-                    item.onclick = () => {
-                        files = proj.files;
-                        document.getElementById('displayProjName').innerText = proj.name;
-                        renderFileTabs();
-                        openFile(Object.keys(files)[0] || 'index.html');
-                        closeHistoryModal();
-                    };
-                    container.appendChild(item);
-                });
-            }).catch((error) => {
-                container.innerHTML = '<p style="text-align: center; font-size: 13px; color: red;">হিস্ট্রি লোড করতে সমস্যা হয়েছে।</p>';
             });
         }
 
-        async function askOpenRouterAPI() {
-            const promptText = document.getElementById('aiPromptInput').value.trim();
-            if(!promptText) return alert('এআই-কে কি করতে হবে তা লিখুন!');
+        // USER DATA
+        function loadUserData() {
+            db.ref('users/' + currentUser.uid).on('value', snap => {
+                userData = snap.val() || {};
+                document.getElementById('headerUserName').innerText = userData.name || 'Worker';
+                document.getElementById('pName').innerText = userData.name || 'Worker';
+                document.getElementById('pEmail').innerText = userData.email || currentUser.email;
+                document.getElementById('pNameInput').value = userData.name || '';
+                document.getElementById('pUserInput').value = userData.username || '';
 
-            const btn = document.querySelector('.ai-command-bar button');
-            btn.innerText = 'জেনারেট হচ্ছে...';
+                if(userData.photoURL) {
+                    document.getElementById('headerAvatar').src = userData.photoURL;
+                    document.getElementById('profileImg').src = userData.photoURL;
+                }
+
+                const bal = '৳ ' + (userData.balance || 0).toFixed(2);
+                const postBal = '৳ ' + (userData.postingBalance || 0).toFixed(2);
+                document.getElementById('homeBalance').innerText = bal;
+                document.getElementById('walletPostingBal').innerText = postBal;
+                document.getElementById('homePostingBal').innerText = postBal;
+                document.getElementById('homeEarned').innerText = '৳ ' + (userData.earned || 0).toFixed(2);
+            });
+
+            loadJobs();
+            loadMySubmissions();
+            loadNotifications();
+        }
+
+        // LOAD & FILTER JOBS
+        function loadJobs() {
+            db.ref('jobs').on('value', snap => {
+                allJobsCache = snap.val() || {};
+                renderJobsList();
+            });
+        }
+
+        function renderJobsList(searchTerm = '') {
+            const container = document.getElementById('jobListContainer');
+            container.innerHTML = '';
+
+            let jobKeys = Object.keys(allJobsCache);
+            const sortVal = document.getElementById('sortJobsSelect').value;
+
+            if(sortVal === 'highest') {
+                jobKeys.sort((a,b) => parseFloat(allJobsCache[b].budget) - parseFloat(allJobsCache[a].budget));
+            } else {
+                jobKeys.sort((a,b) => (allJobsCache[b].timestamp || 0) - (allJobsCache[a].timestamp || 0));
+            }
+
+            let count = 0;
+            jobKeys.forEach(key => {
+                const job = allJobsCache[key];
+                const matchesCat = (currentCatFilter === 'All' || job.category === currentCatFilter);
+                const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase());
+
+                if ((job.status === 'published' || job.status === 'Full') && job.approved && matchesCat && matchesSearch) {
+                    count++;
+                    const thumb = job.thumbnail || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect width="100%" height="100%" fill="%23E2E8F0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="20" fill="%2364748B">No Thumbnail</text></svg>';
+                    const submittedCount = job.submittedCount || 0;
+                    
+                    container.innerHTML += `
+                        <div class="job-card" onclick="openJobDetails('${key}')">
+                            <img class="job-card-thumb" src="${thumb}" alt="Job Cover">
+                            <div class="job-card-body">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                                    <span class="badge">${job.category || 'General'}</span>
+                                    <span style="font-weight:800; color:var(--primary); font-size:16px;">৳ ${parseFloat(job.budget).toFixed(2)}</span>
+                                </div>
+                                <h4 style="font-weight:700; margin-bottom:6px;">${job.title}</h4>
+                                <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted);">
+                                    <span>Submitted: ${submittedCount} / ${job.workers || '∞'}</span>
+                                    <span>${timeAgo(job.timestamp)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            document.getElementById('searchCount').innerText = `${count} tasks found`;
+            if(count === 0) container.innerHTML = '<p style="text-align:center; padding:30px; color:var(--text-muted);">No jobs available right now.</p>';
+        }
+
+        function filterCategory(cat, el) {
+            currentCatFilter = cat;
+            document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+            if(el) el.classList.add('active');
+            renderJobsList();
+        }
+
+        function searchJobs(q) { renderJobsList(q); }
+
+        // OPEN FULL JOB DETAILS SCREEN
+        function openJobDetails(key) {
+            activeJobId = key;
+            const job = allJobsCache[key];
+            activeJobData = job;
+
+            const thumb = job.thumbnail || '';
+            const descWithLinks = linkify(job.description || '');
+            const screenshots = job.screenshots || [];
+
+            let screenshotsHtml = '';
+            if(screenshots.length > 0) {
+                screenshotsHtml = `
+                    <h4 style="margin-top:16px; margin-bottom:8px;">Job Screenshots</h4>
+                    <div class="gallery-grid">
+                        ${screenshots.map(url => `<img class="gallery-img" src="${url}" onclick="viewImage('${url}')">`).join('')}
+                    </div>
+                `;
+            }
+
+            const proofType = job.proofType || 'Text Proof';
+            let proofFormFields = '';
+
+            if(proofType.includes('Text')) {
+                proofFormFields += `<div class="input-group"><label>Text Proof Details *</label><textarea id="pfText" class="form-control" rows="3" placeholder="Provide requested proof text..."></textarea></div>`;
+            }
+            if(proofType.includes('Screenshot')) {
+                proofFormFields += `<div class="input-group"><label>Screenshot Proof *</label><input type="file" id="pfImg" accept="image/*" class="form-control"></div>`;
+            }
+            if(proofType.includes('Link')) {
+                proofFormFields += `<div class="input-group"><label>Direct Proof Link *</label><input type="url" id="pfLink" class="form-control" placeholder="https://..."></div>`;
+            }
+
+            const submittedCount = job.submittedCount || 0;
+            const workers = parseInt(job.workers) || 100;
+            const remaining = Math.max(0, workers - (job.completedCount || 0));
+
+            document.getElementById('jobDetailsContent').innerHTML = `
+                ${thumb ? `<img src="${thumb}" onclick="viewImage('${thumb}')" style="width:100%; max-height:220px; object-fit:cover; border-radius:var(--radius-lg); margin-bottom:16px;">` : ''}
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="badge">${job.category}</span>
+                    <span style="font-size:24px; font-weight:800; color:var(--primary);">৳ ${parseFloat(job.budget).toFixed(2)}</span>
+                </div>
+                <h2 style="margin:10px 0;">${job.title}</h2>
+                <div style="display:flex; gap:12px; font-size:12px; color:var(--text-muted); margin-bottom:16px;">
+                    <span>Workers Needed: ${workers}</span>
+                    <span>Remaining Slots: ${remaining}</span>
+                    <span>Submitted: ${submittedCount}</span>
+                </div>
+
+                <div style="background:var(--bg-card); padding:16px; border-radius:var(--radius-lg); border:1px solid var(--border); margin-bottom:16px;">
+                    <h4>Job Instructions</h4>
+                    <p style="white-space:pre-line; font-size:14px; line-height:1.6; margin-top:8px;">${descWithLinks}</p>
+                    ${screenshotsHtml}
+                </div>
+
+                <div style="background:var(--bg-card); padding:16px; border-radius:var(--radius-lg); border:1px solid var(--border);">
+                    <h4 style="margin-bottom:12px;">Submit Work Proof</h4>
+                    ${proofFormFields}
+                    <button class="btn btn-primary" id="subProofBtn" onclick="submitWorkProof()">Submit Work Proof</button>
+                </div>
+            `;
+
+            switchTab('jobDetails');
+        }
+
+        // SUBMIT WORK PROOF
+        async function submitWorkProof() {
+            const btn = document.getElementById('subProofBtn');
+            btn.disabled = true;
+            btn.innerText = 'Uploading Proof...';
 
             try {
-                const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-                        "Content-Type": "application/json",
-                        "HTTP-Referer": window.location.origin,
-                        "X-Title": "MYBLM AI App"
-                    },
-                    body: JSON.stringify({
-                        "model": "deepseek/deepseek-chat",
-                        "messages": [
-                            {
-                                "role": "system",
-                                "content": "You are an expert web developer. Write only clean, well-structured and valid HTML, CSS, and JS code based on the user request."
-                            },
-                            {
-                                "role": "user",
-                                "content": promptText
-                            }
-                        ]
-                    })
-                });
+                const proofType = activeJobData.proofType || 'Text Proof';
+                let proofText = '', proofLink = '', proofImgUrl = '';
 
-                const data = await response.json();
-                
-                if (data.error) {
-                    throw new Error(data.error.message || JSON.stringify(data.error));
+                if(proofType.includes('Text')) {
+                    proofText = document.getElementById('pfText').value;
+                    if(!proofText) throw new Error('Text proof required');
+                }
+                if(proofType.includes('Link')) {
+                    proofLink = document.getElementById('pfLink').value;
+                    if(!proofLink) throw new Error('Link proof required');
+                }
+                if(proofType.includes('Screenshot')) {
+                    const fileInput = document.getElementById('pfImg');
+                    if(!fileInput.files[0]) throw new Error('Screenshot proof image required');
+                    
+                    const file = fileInput.files[0];
+                    const ref = storage.ref(`proofs/${currentUser.uid}_${Date.now()}_${file.name}`);
+                    await ref.put(file);
+                    proofImgUrl = await ref.getDownloadURL();
                 }
 
-                let aiGeneratedContent = data.choices[0].message.content;
-                aiGeneratedContent = aiGeneratedContent.replace(/```html/g, '').replace(/```css/g, '').replace(/```javascript/g, '').replace(/```/g, '').trim();
+                await db.ref('submissions').push({
+                    jobId: activeJobId,
+                    userId: currentUser.uid,
+                    userName: userData.name || 'Worker',
+                    userPhoto: userData.photoURL || '',
+                    jobTitle: activeJobData.title,
+                    proofText, proofLink, proofImgUrl,
+                    status: 'Submitted',
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
 
-                pureAiCodeText = aiGeneratedContent;
+                // Update real submission count
+                db.ref(`jobs/${activeJobId}/submittedCount`).transaction(curr => (curr || 0) + 1);
 
-                document.getElementById('chatPopupContent').innerText = aiGeneratedContent;
-                document.getElementById('extraChatInput').value = '';
-                document.getElementById('aiChatPopup').style.display = 'flex';
-                document.getElementById('aiPromptInput').value = '';
-
-            } catch (error) {
-                alert('OpenRouter থেকে রেসপন্স আনতে সমস্যা হয়েছে: ' + error.message);
+                showToast('Work submitted successfully!');
+                switchTab('orders');
+            } catch(e) {
+                showToast(e.message, true);
             } finally {
-                btn.innerText = 'জেনারেট';
+                btn.disabled = false;
+                btn.innerText = 'Submit Work Proof';
             }
         }
 
-        function closeChatPopup() {
-            document.getElementById('aiChatPopup').style.display = 'none';
-        }
+        function loadMySubmissions() {
+            db.ref('submissions').orderByChild('userId').equalTo(currentUser.uid).on('value', snap => {
+                const container = document.getElementById('mySubmissionsContainer');
+                container.innerHTML = '';
+                const subs = snap.val() || {};
 
-        function copyChatContentOnly() {
-            const extraText = document.getElementById('extraChatInput').value.trim();
-            let finalTextToCopy = pureAiCodeText;
-            
-            if (extraText) {
-                finalTextToCopy += "\n\n/* অতিরিক্ত নোট: */\n" + extraText;
-            }
+                Object.keys(subs).forEach(k => {
+                    const s = subs[k];
+                    let badgeClass = s.status === 'Approved' ? 'badge-approved' : (s.status === 'Rejected' ? 'badge-rejected' : 'badge-pending');
 
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(finalTextToCopy).then(() => {
-                    alert('শুধুমাত্র কোড সফলভাবে কপি করা হয়েছে!');
+                    container.innerHTML += `
+                        <div style="background:var(--bg-card); padding:16px; border-radius:var(--radius-lg); border:1px solid var(--border); margin-bottom:12px;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                                <h4 style="font-size:14px;">${s.jobTitle}</h4>
+                                <span class="badge ${badgeClass}">${s.status}</span>
+                            </div>
+                            <div style="font-size:12px; color:var(--text-muted);">${timeAgo(s.timestamp)}</div>
+                            ${s.rejectionReason ? `<div style="color:#EF4444; font-size:12px; margin-top:6px;">Reason: ${s.rejectionReason}</div>` : ''}
+                        </div>
+                    `;
                 });
-            }
-        }
-
-        function insertChatToEditor() {
-            const extraText = document.getElementById('extraChatInput').value.trim();
-            let finalTextToInsert = pureAiCodeText;
-
-            if (extraText) {
-                finalTextToInsert += "\n\n/* " + extraText + " */";
-            }
-
-            document.getElementById('codeEditor').value = finalTextToInsert;
-            saveCurrentCode();
-            updateLineNumbers();
-            updatePreview();
-            closeChatPopup();
-            alert('এডিটরে সফলভাবে কোড বসানো হয়েছে!');
-        }
-
-        function updateLineNumbers() {
-            const textarea = document.getElementById('codeEditor');
-            const lineNumbers = document.getElementById('lineNumbers');
-            const lines = textarea.value.split('\n').length;
-            let lineStr = '';
-            for (let i = 1; i <= lines; i++) {
-                lineStr += i + '<br>';
-            }
-            lineNumbers.innerHTML = lineStr;
-        }
-
-        function syncScroll() {
-            const textarea = document.getElementById('codeEditor');
-            const lineNumbers = document.getElementById('lineNumbers');
-            lineNumbers.scrollTop = textarea.scrollTop;
-        }
-
-        function onCodeInput() {
-            saveCurrentCode();
-            updateLineNumbers();
-            updatePreview();
-        }
-
-        function renderFileTabs() {
-            const fileBar = document.getElementById('fileBar');
-            fileBar.innerHTML = '';
-
-            for (let filename in files) {
-                const btn = document.createElement('button');
-                btn.className = `file-tab ${filename === currentFile ? 'active' : ''}`;
-                btn.innerText = filename;
-                btn.onclick = () => openFile(filename);
-                fileBar.appendChild(btn);
-            }
-        }
-
-        function addNewFilePrompt() {
-            const newName = prompt('নতুন ফাইলের নাম লিখুন (যেমন: style.css বা script.js):');
-            if(newName && !files[newName]) {
-                files[newName] = '';
-                openFile(newName);
-                renderFileTabs();
-            }
-        }
-
-        function openFile(filename) {
-            currentFile = filename;
-            document.getElementById('codeEditor').value = files[filename] || '';
-            renderFileTabs();
-            updateLineNumbers();
-            updatePreview();
-        }
-
-        function saveCurrentCode() {
-            files[currentFile] = document.getElementById('codeEditor').value;
-        }
-
-        function toggleSearchPanel() {
-            document.getElementById('searchPanel').classList.toggle('active');
-        }
-
-        function resetSearch() {
-            searchMatches = [];
-            currentMatchIndex = -1;
-            document.getElementById('searchInfo').innerText = "0/0";
-        }
-
-        function findNextCode() {
-            const query = document.getElementById('searchInput').value;
-            const textarea = document.getElementById('codeEditor');
-            const content = textarea.value;
-
-            if(!query) return;
-
-            if(searchMatches.length === 0) {
-                let index = content.indexOf(query);
-                while (index !== -1) {
-                    searchMatches.push(index);
-                    index = content.indexOf(query, index + 1);
-                }
-            }
-
-            if(searchMatches.length === 0) {
-                document.getElementById('searchInfo').innerText = "০টি";
-                return;
-            }
-
-            currentMatchIndex = (currentMatchIndex + 1) % searchMatches.length;
-            const matchPos = searchMatches[currentMatchIndex];
-
-            textarea.focus();
-            textarea.setSelectionRange(matchPos, matchPos + query.length);
-            document.getElementById('searchInfo').innerText = `${currentMatchIndex + 1}/${searchMatches.length}`;
-        }
-
-        function downloadZip() {
-            const zip = new JSZip();
-            for (let filename in files) {
-                zip.file(filename, files[filename]);
-            }
-            zip.generateAsync({type:"blob"}).then(function(content) {
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(content);
-                link.download = "MYBLM_AI_Project.zip";
-                link.click();
             });
         }
 
-        function switchView(viewName) {
-            const editorView = document.getElementById('editorView');
-            const previewView = document.getElementById('previewView');
-            const topActionBar = document.getElementById('topActionBar');
-            const aiCommandBar = document.getElementById('aiCommandBar');
-            const symbolBar = document.getElementById('symbolBar');
-            
-            const editorTabBtn = document.getElementById('editorTabBtn');
-            const previewTabBtn = document.getElementById('previewTabBtn');
+        // DEPOSIT & WITHDRAWAL
+        async function submitDeposit() {
+            const amt = parseFloat(document.getElementById('depAmt').value);
+            const trx = document.getElementById('depTrx').value;
+            const btn = document.getElementById('depBtn');
 
-            if (viewName === 'editor') {
-                editorView.style.display = 'flex';
-                previewView.style.display = 'none';
-                editorTabBtn.classList.add('active');
-                previewTabBtn.classList.remove('active');
-                topActionBar.style.display = 'flex';
-                aiCommandBar.style.display = 'flex';
-                symbolBar.style.display = 'flex';
-            } else {
-                editorView.style.display = 'none';
-                previewView.style.display = 'flex';
-                editorTabBtn.classList.remove('active');
-                previewTabBtn.classList.add('active');
-                topActionBar.style.display = 'none';
-                aiCommandBar.style.display = 'none';
-                symbolBar.style.display = 'none';
-                updatePreview();
+            if(!amt || !trx) return showToast('Fill all deposit fields', true);
+
+            btn.disabled = true;
+            await db.ref('deposits').push({
+                userId: currentUser.uid,
+                userName: userData.name || 'User',
+                amount: amt,
+                trxId: trx,
+                status: 'Pending',
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+            showToast('Deposit request submitted');
+            closeModal('depositModal');
+            btn.disabled = false;
+        }
+
+        async function requestWithdrawal() {
+            const method = document.getElementById('wMethod').value;
+            const acc = document.getElementById('wAcc').value;
+            const amt = parseFloat(document.getElementById('wAmt').value);
+            const btn = document.getElementById('wBtn');
+
+            if(!acc || !amt || amt < 100) return showToast('Minimum withdrawal BDT 100', true);
+            if((userData.balance || 0) < amt) return showToast('Insufficient balance', true);
+
+            btn.disabled = true;
+            await db.ref('withdrawals').push({
+                userId: currentUser.uid,
+                method, account: acc, amount: amt, status: 'Pending',
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+            showToast('Withdrawal requested');
+            btn.disabled = false;
+        }
+
+        // PROFILE EDIT & SECURITY
+        async function updateProfile() {
+            const name = document.getElementById('pNameInput').value;
+            const username = document.getElementById('pUserInput').value;
+            const fileInput = document.getElementById('pPicInput');
+            const btn = document.getElementById('saveProfileBtn');
+
+            btn.disabled = true;
+            let photoURL = userData.photoURL || '';
+
+            try {
+                if(fileInput.files[0]) {
+                    const file = fileInput.files[0];
+                    const ref = storage.ref(`avatars/${currentUser.uid}_${file.name}`);
+                    await ref.put(file);
+                    photoURL = await ref.getDownloadURL();
+                }
+
+                await db.ref('users/' + currentUser.uid).update({ name, username, photoURL });
+                showToast('Profile updated');
+            } catch(e) {
+                showToast(e.message, true);
+            } finally {
+                btn.disabled = false;
             }
         }
 
-        function updatePreview() {
-            const previewFrame = document.getElementById('previewFrame');
-            let htmlContent = files['index.html'] || '';
-            const frameDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
-            frameDoc.open();
-            frameDoc.write(htmlContent);
-            frameDoc.close();
+        async function updatePassword() {
+            const pass = document.getElementById('pNewPass').value;
+            if(!pass || pass.length < 6) return showToast('Password must be at least 6 chars', true);
+            
+            try {
+                await currentUser.updatePassword(pass);
+                showToast('Password updated');
+                document.getElementById('pNewPass').value = '';
+            } catch(e) {
+                showToast(e.message, true);
+            }
         }
 
-        function insertCode(textToInsert) {
-            const textarea = document.getElementById('codeEditor');
-            const start = textarea.selectionStart;
-            const end = textarea.selectionEnd;
-            textarea.value = textarea.value.substring(0, start) + textToInsert + textarea.value.substring(end);
-            textarea.selectionStart = textarea.selectionEnd = start + textToInsert.length;
-            textarea.focus();
-            onCodeInput();
+        // NOTIFICATIONS SYSTEM
+        function loadNotifications() {
+            db.ref('notifications').on('value', snap => {
+                const list = document.getElementById('notificationsList');
+                list.innerHTML = '';
+                const notifs = snap.val() || {};
+                let unread = 0;
+
+                Object.keys(notifs).reverse().forEach(k => {
+                    const n = notifs[k];
+                    if(n.target === 'All' || n.target === currentUser.uid) {
+                        unread++;
+                        list.innerHTML += `
+                            <div style="background:var(--bg-card); padding:14px; border-radius:var(--radius-lg); border:1px solid var(--border); margin-bottom:10px;">
+                                ${n.image ? `<img src="${n.image}" style="width:100%; max-height:120px; object-fit:cover; border-radius:8px; margin-bottom:8px;">` : ''}
+                                <h4>${n.title}</h4>
+                                <p style="font-size:13px; color:var(--text-muted); margin-top:4px;">${n.description}</p>
+                                <span style="font-size:10px; color:var(--text-muted);">${timeAgo(n.timestamp)}</span>
+                            </div>
+                        `;
+                    }
+                });
+
+                const badge = document.getElementById('notifBadge');
+                const navBadge = document.getElementById('navNotifBadge');
+                if(unread > 0) {
+                    badge.innerText = unread; badge.style.display = 'block';
+                    navBadge.innerText = unread; navBadge.style.display = 'block';
+                }
+            });
+        }
+
+        function requestPushPermission() {
+            if ('Notification' in window) {
+                Notification.requestPermission().then(permission => {
+                    showToast('Notification permission: ' + permission);
+                });
+            }
+        }
+
+        // UTILITIES
+        function handleLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const pass = document.getElementById('loginPass').value;
+            auth.signInWithEmailAndPassword(email, pass).catch(e => showToast(e.message, true));
+        }
+
+        function handleSignup() {
+            const name = document.getElementById('regName').value;
+            const username = document.getElementById('regUser').value;
+            const email = document.getElementById('regEmail').value;
+            const pass = document.getElementById('regPass').value;
+
+            auth.createUserWithEmailAndPassword(email, pass).then(res => {
+                return db.ref('users/' + res.user.uid).set({
+                    name, username, email, balance: 0, postingBalance: 0, earned: 0
+                });
+            }).catch(e => showToast(e.message, true));
+        }
+
+        function handleLogout() { auth.signOut(); }
+        function togglePass(id) { const i = document.getElementById(id); i.type = i.type === 'password' ? 'text' : 'password'; }
+        function toggleAuth(view) {
+            document.getElementById('loginCard').style.display = view === 'login' ? 'block' : 'none';
+            document.getElementById('signupCard').style.display = view === 'signup' ? 'block' : 'none';
+        }
+
+        function switchTab(screenId, el) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId + 'Screen').classList.add('active');
+            if(el) {
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                el.classList.add('active');
+            }
+        }
+
+        function showToast(msg, isErr = false) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.className = 'toast show' + (isErr ? ' error' : '');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        function viewImage(url) { document.getElementById('imageViewerSrc').src = url; document.getElementById('imageViewer').style.display = 'flex'; }
+        function copyText(txt) { navigator.clipboard.writeText(txt); showToast('Copied to clipboard!'); }
+        
+        function linkify(text) {
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            return text.replace(urlRegex, url => `<a href="${url}" target="_blank" rel="noopener noreferrer" class="clickable-link">${url}</a>`);
+        }
+
+        function timeAgo(timestamp) {
+            if(!timestamp) return 'Just now';
+            const seconds = Math.floor((Date.now() - timestamp) / 1000);
+            if(seconds < 60) return 'Just now';
+            const minutes = Math.floor(seconds / 60);
+            if(minutes < 60) return `${minutes}m ago`;
+            const hours = Math.floor(minutes / 60);
+            if(hours < 24) return `${hours}h ago`;
+            return `${Math.floor(hours / 24)}d ago`;
+        }
+
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const target = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', target);
+            document.getElementById('themeIcon').innerText = target === 'dark' ? 'light_mode' : 'dark_mode';
         }
     </script>
 </body>
